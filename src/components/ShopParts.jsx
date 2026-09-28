@@ -2,7 +2,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useShop } from '../lib/store'
 import { Icon, Logo } from './Icons'
-import { R, hasPrice, specialOn, nowPrice, fullName, typeName } from '../lib/format'
+import { R, hasPrice, specialOn, nowPrice, fullName, typeName, TYPES, inStock } from '../lib/format'
 
 const NAV = [
   ['/shop', 'Shop all'], ['/shop?type=coaster', 'Coasters'], ['/shop?type=stand', 'Phone stands'],
@@ -42,7 +42,7 @@ export function Footer() {
     <footer className="site"><div className="wrap">
       <div className="cols">
         <div><div className="logo" style={{ color: '#fff', cursor: 'default' }}><Logo dark /></div><p style={{ marginTop: 14, maxWidth: 300, fontSize: 14 }}>Coasters, phone stands and decor boards, designed in house and UV printed on MDF in South Africa.</p></div>
-        <div><h4>Shop</h4><Link to="/shop?type=coaster">Coasters</Link><Link to="/shop?type=stand">Phone stands</Link><Link to="/shop?type=board">A4 decor boards</Link><Link to="/custom">Make it yours</Link><Link to="/gift-sets">Gift sets</Link></div>
+        <div><h4>Shop</h4>{TYPES.map(t => <Link key={t.key} to={'/shop?type=' + t.key}>{t.label}</Link>)}<Link to="/custom">Make it yours</Link><Link to="/gift-sets">Gift sets</Link></div>
         <div><h4>Themes</h4>{themes.map(t => <Link key={t.id} to={'/shop?theme=' + t.id}>{t.name}</Link>)}</div>
         <div><h4>Help</h4><Link to="/help">Questions and answers</Link><Link to="/account">My account</Link><Link to="/wholesale">Wholesale login</Link><Link to="/story">Delivery and returns</Link><Link to="/story">Terms and conditions</Link><Link to="/story">Privacy policy (POPIA)</Link></div>
       </div>
@@ -67,18 +67,18 @@ export function Price({ p }) {
 export function ProductCard({ p }) {
   const { addToCart, toast, themeName } = useShop()
   const nav = useNavigate()
-  const canAdd = hasPrice(p) && p.stock > 0 && !p.is_custom
+  const canAdd = hasPrice(p) && inStock(p) && !p.is_custom
   return (
     <article className="card pcard" onClick={() => nav('/product/' + p.id)}>
-      <div className="pimg">{p.image_url ? <img src={p.image_url} alt={fullName(p)} loading="lazy" /> : null}<Badge p={p} /></div>
+      <div className="pimg">{p.image_url ? <img src={p.image_url} alt={fullName(p)} loading="lazy" /> : <div className="noimg"><b>{p.name}</b><span>Photo coming soon</span></div>}<Badge p={p} /></div>
       <div className="pbody">
-        <span className="pcat">{typeName(p.type)} · {themeName(p.theme_id)}</span>
+        <span className="pcat">{[typeName(p.type), themeName(p.theme_id)].filter(Boolean).join(' · ')}</span>
         <h3><Link to={'/product/' + p.id} onClick={e => e.stopPropagation()} style={{ color: 'inherit', textDecoration: 'none' }}>{p.name}</Link></h3>
         {p.variant && <span className="muted" style={{ fontSize: 14, marginTop: -2 }}>{p.variant}</span>}
         <div className="addrow">
           <Price p={p} />
           {canAdd && <button className="plus" aria-label={'Add ' + fullName(p) + ' to cart'} onClick={e => { e.stopPropagation(); addToCart('p', p.id, 1); toast(fullName(p) + ' added to your cart') }}><Icon.plus /></button>}
-          {!p.is_custom && hasPrice(p) && p.stock < 1 && <span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>Sold out</span>}
+          {hasPrice(p) && !inStock(p) && <span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>Sold out</span>}
         </div>
       </div>
     </article>

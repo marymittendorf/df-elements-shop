@@ -79,6 +79,14 @@ This makes the "confirm your email" and "reset your password" links for customer
 * **Expenses**: add each expense with a photo or PDF of the receipt. The 15% button works out the VAT for you. Set monthly budgets under **Budgets and categories**. Things you pay every month go under **Recurring** and are added by themselves on the right day.
 * **Reports**: choose a period at the top, then pick a report. Each one has **Download CSV** for your bookkeeper and **Print**.
 
+## New price list, product types and phone stand photos
+
+1. Upload the **src**, **supabase** and **public** folders and this file to GitHub, and commit to main.
+2. In the Supabase **SQL Editor**, run **supabase/07_product_types_prices.sql** (after 06).
+3. It sets coasters to R12 (trade R7) and phone stands to R25 (trade R14,50), clears the old specials, and adds the other products from your price list as made to order items.
+4. Product types (Coasters, Phone stands, Decor boards, Home and kitchen, Gifts and keepsakes) can be renamed, hidden or added under **Settings**, then **Product types**.
+5. New products show "Photo coming soon" until you upload a photo in **Products**. Anything marked **Check the name** is worth a quick look.
+
 ## When the domain has moved to xneelo
 
 1. In Vercel, open the project, then **Settings**, then **Domains**, and add your domain.

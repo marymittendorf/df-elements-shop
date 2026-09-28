@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { loadTypes } from '../lib/format'
 import { Dashboard } from './Dashboard'
 import { Orders, OrderDetail } from './Orders'
 import { Products, ProductEdit } from './Products'
@@ -57,7 +58,7 @@ export default function AdminApp() {
     if (!s.session) { setState('login'); return }
     const { data: ok } = await supabase.rpc('is_staff')
     if (!ok) { setState('login'); return }
-    const { data } = await supabase.from('staff_users').select('*').eq('id', s.session.user.id).maybeSingle()
+    const [{ data }] = await Promise.all([supabase.from('staff_users').select('*').eq('id', s.session.user.id).maybeSingle(), loadTypes(supabase)])
     setMe(data); setState('ok')
   }, [])
   useEffect(() => { check() }, [check])

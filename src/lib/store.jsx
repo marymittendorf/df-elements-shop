@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabase'
-import { nowPrice, fullName } from './format'
+import { nowPrice, fullName, setTypes } from './format'
 
 const Ctx = createContext(null)
 export const useShop = () => useContext(Ctx)
@@ -18,13 +18,15 @@ export function ShopProvider({ children }) {
   const tRef = useRef()
 
   const loadCatalog = useCallback(async () => {
-    const [th, pr, gs, dl, st] = await Promise.all([
+    const [th, pr, gs, dl, st, ty] = await Promise.all([
       supabase.from('themes').select('*').order('sort_order'),
       supabase.from('products').select('*').eq('is_active', true).order('sort_order'),
       supabase.from('gift_sets').select('*, gift_set_items(product_id, qty)').eq('is_active', true).order('sort_order'),
       supabase.from('delivery_options').select('*').eq('is_active', true).order('sort_order'),
-      supabase.from('settings').select('*').eq('id', 1).maybeSingle()
+      supabase.from('settings').select('*').eq('id', 1).maybeSingle(),
+      supabase.from('product_types').select('*').eq('is_active', true).order('sort_order')
     ])
+    setTypes(ty.data)
     const err = th.error || pr.error || gs.error || dl.error || st.error
     setCatalog({ loading: false, error: err ? err.message : null, themes: th.data || [], products: pr.data || [], sets: gs.data || [], delivery: dl.data || [], settings: st.data })
   }, [])

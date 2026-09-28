@@ -17,7 +17,7 @@ export function Dashboard() {
         supabase.from('orders').select('id, order_no, status, proof_approved_at, order_items(name, qty, is_custom, from_stock_qty)').in('status', ['awaiting_payment', 'paid']),
         supabase.from('orders').select('id, order_no, first_name, last_name, total, status, order_items(is_custom)').order('created_at', { ascending: false }).limit(6),
         supabase.from('orders').select('total').gte('paid_at', monthStart.toISOString()).neq('status', 'cancelled'),
-        supabase.from('products').select('id, name, variant, stock, image_url').eq('is_custom', false).eq('is_active', true).lt('stock', 6).order('stock').limit(8),
+        supabase.from('products').select('id, name, variant, stock, image_url').eq('is_custom', false).eq('made_to_order', false).eq('is_active', true).lt('stock', 6).order('stock').limit(8),
         supabase.from('products').select('id', { count: 'exact', head: true }).not('special_price', 'is', null),
         supabase.from('wholesale_clients').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('branding_requests').select('id', { count: 'exact', head: true }).eq('status', 'new')

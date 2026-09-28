@@ -4,7 +4,7 @@ import { useShop } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { Icon } from '../components/Icons'
 import { ProductCard, SetHero, PageHead, Loading, Price, setFull } from '../components/ShopParts'
-import { R, TYPES, typeName, hasPrice, specialOn, nowPrice, fullName } from '../lib/format'
+import { R, TYPES, typeName, hasPrice, specialOn, nowPrice, fullName, inStock } from '../lib/format'
 
 export function Home() {
   const { products, themes, sets, loading, error } = useShop()
@@ -29,7 +29,7 @@ export function Home() {
           return (
             <Link key={t.key} className="card type" to={'/shop?type=' + t.key}>
               <div className="ti">{t.img ? <img src={t.img} alt="" /> : <div className="soon"><span>Coming soon</span><span style={{ fontFamily: 'var(--body)', fontSize: 14, fontWeight: 600 }}>Photos on the way</span></div>}</div>
-              <div className="tb"><span className="pcat">{n ? n + ' designs' : 'Launching soon'}</span><h3>{t.label}</h3><p className="muted" style={{ fontSize: 15 }}>{t.blurb}</p></div>
+              <div className="tb"><span className="pcat">{n ? n + (n === 1 ? ' item' : ' items') : 'Launching soon'}</span><h3>{t.label}</h3><p className="muted" style={{ fontSize: 15 }}>{t.blurb}</p></div>
             </Link>)
         })}</div>
         <div className="stack" style={{ gap: 14, marginTop: 36 }}><span className="eyebrow">Or shop by theme</span>
@@ -92,11 +92,11 @@ export function Shop() {
           </fieldset>
         </aside>
         <div>
-          <div className="toolbar"><span className="muted">Showing {list.length} designs</span>
+          <div className="toolbar"><span className="muted">Showing {list.length} {list.length === 1 ? 'item' : 'items'}</span>
             <label style={{ display: 'flex', alignItems: 'center', gap: 10 }}>Sort by <select value={sort} onChange={e => setSort(e.target.value)}><option value="best">Theme</option><option value="new">Newest</option><option value="low">Price, low to high</option><option value="high">Price, high to low</option></select></label>
           </div>
           {list.length ? <div className="pgrid three">{list.map(p => <ProductCard key={p.id} p={p} />)}</div>
-            : type === 'board' ? <div className="card" style={{ padding: 40, display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'flex-start', background: 'var(--surface)', border: 0 }}><h2 style={{ fontSize: 36 }}>A4 decor boards are coming soon</h2><p className="muted" style={{ maxWidth: 560 }}>The first boards are being photographed. Check back soon.</p><Link className="btn" to="/shop">Shop coasters and stands</Link></div>
+            : type && !products.some(p => p.type === type) ? <div className="card" style={{ padding: 40, display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'flex-start', background: 'var(--surface)', border: 0 }}><h2 style={{ fontSize: 36 }}>{typeName(type)} are coming soon</h2><p className="muted" style={{ maxWidth: 560 }}>Check back soon.</p><Link className="btn" to="/shop">Shop everything</Link></div>
               : <p className="muted">No designs match. Try another word or clear the filters.</p>}
         </div>
       </div></section>
@@ -139,7 +139,7 @@ export function Product() {
   if (loading) return <Loading />
   const p = P(Number(id))
   if (!p) return <section><div className="wrap stack"><h1 style={{ fontSize: 44 }}>We could not find that design</h1><Link className="btn" to="/shop" style={{ alignSelf: 'flex-start' }}>Shop the range</Link></div></section>
-  const rel = products.filter(x => x.id !== p.id && x.theme_id === p.theme_id && !x.is_custom).slice(0, 4)
+  const rel = products.filter(x => x.id !== p.id && (p.theme_id ? x.theme_id === p.theme_id : x.type === p.type) && !x.is_custom).slice(0, 4)
   const set = sets.find(s => s.gift_set_items.some(i => i.product_id === p.id))
 
   const setPhoto = async file => {
@@ -164,30 +164,30 @@ export function Product() {
       <section style={{ paddingTop: 32 }}><div className="wrap">
         <div className="crumbs"><Link to="/">Home</Link> / <Link to={'/shop?type=' + p.type}>{typeName(p.type)}</Link> / {p.name}</div>
         <div className="pdp" style={{ marginTop: 20 }}>
-          <div className="main" style={{ background: 'var(--t1)' }}>{p.image_url && <img src={p.image_url} alt={fullName(p)} />}</div>
+          <div className="main" style={{ background: 'var(--t1)' }}>{p.image_url ? <img src={p.image_url} alt={fullName(p)} /> : <div className="noimg"><b>{p.name}</b><span>Photo coming soon</span></div>}</div>
           <div className="stack">
             <div className="stack" style={{ gap: 10 }}>
-              <span className="eyebrow">{themeName(p.theme_id)}{p.size ? ' · ' + p.size : ''}</span>
+              <span className="eyebrow">{[themeName(p.theme_id) || typeName(p.type), p.size].filter(Boolean).join(' · ')}</span>
               <h1>{p.name}</h1>
               {p.variant && <span className="pill" style={{ background: 'rgba(34,30,27,.1)', color: 'var(--primary-dk)', fontSize: 14, padding: '7px 14px', alignSelf: 'flex-start' }}>{p.variant}</span>}
               <div className="row">{hasPrice(p) ? <><span className="bigprice num">{R(nowPrice(p))}</span>{specialOn(p) && <><span className="was num muted" style={{ textDecoration: 'line-through' }}>{R(p.price)}</span><span className="pill" style={{ background: 'var(--sale)', color: '#fff' }}>On special</span></>}</> : <span className="bigprice" style={{ fontSize: 28 }}>Price coming soon</span>}</div>
             </div>
             <p className="muted" style={{ fontSize: 17 }}>{p.short_description}</p>
             {p.is_custom && <CustomBox photo={photo} setPhoto={setPhoto} note={note} setNote={setNote} busy={busy} />}
-            {hasPrice(p) && (p.is_custom || p.stock > 0
-              ? <div className="row"><div className="qty"><button onClick={() => setQty(Math.max(1, qty - 1))} aria-label="Decrease quantity">&minus;</button><span className="num">{qty}</span><button onClick={() => setQty(p.is_custom ? qty + 1 : Math.min(p.stock, qty + 1))} aria-label="Increase quantity">+</button></div><button className="btn" style={{ flex: '1 1 200px' }} onClick={add} disabled={busy}>{p.is_custom ? 'Add custom order to cart' : 'Add to cart'}</button></div>
+            {hasPrice(p) && (inStock(p)
+              ? <div className="row"><div className="qty"><button onClick={() => setQty(Math.max(1, qty - 1))} aria-label="Decrease quantity">&minus;</button><span className="num">{qty}</span><button onClick={() => setQty(p.is_custom || p.made_to_order ? qty + 1 : Math.min(p.stock, qty + 1))} aria-label="Increase quantity">+</button></div><button className="btn" style={{ flex: '1 1 200px' }} onClick={add} disabled={busy}>{p.is_custom ? 'Add custom order to cart' : 'Add to cart'}</button></div>
               : <div className="note" style={{ background: 'var(--warn-bg)' }}>Sold out. Check back soon.</div>)}
             {set && <div className="note"><span className="circle" style={{ width: 40, height: 40 }}><Icon.plus /></span><span>Part of the <b>{set.name}</b> for {R(set.price)}. <button className="linkbtn" onClick={() => { addToCart('s', set.id, 1); toast(set.name + ' added to your cart') }}>Add the set</button></span></div>}
-            {hasPrice(p) && <div className="note"><span className="circle" style={{ width: 40, height: 40 }}><Icon.truck /></span><span>{!p.is_custom && p.stock > 0 && p.stock < 6 ? 'Only ' + p.stock + ' left. ' : ''}Delivery options and costs are shown at checkout.</span></div>}
+            {hasPrice(p) && <div className="note"><span className="circle" style={{ width: 40, height: 40 }}><Icon.truck /></span><span>{!p.is_custom && !p.made_to_order && p.stock > 0 && p.stock < 6 ? 'Only ' + p.stock + ' left. ' : ''}Delivery options and costs are shown at checkout.</span></div>}
             <div className="acc">
-              <details open><summary>Details</summary><p>{p.material}{p.size ? ' Size: ' + p.size + '.' : ''} Each piece is printed to order, so colours may vary slightly from your screen.</p></details>
+              <details open><summary>Details</summary><p>{p.material}{p.size ? ' Size: ' + p.size + '.' : ''} {p.made_to_order ? 'Made to order for you, so colours may vary slightly from your screen.' : 'Colours may vary slightly from your screen.'}</p></details>
               <details><summary>Care</summary><p>{p.care}</p></details>
               <details><summary>Delivery and returns</summary><p>Nationwide courier delivery, or collect from a PUDO locker. Custom items are made just for you and cannot be returned unless they arrive damaged.</p></details>
             </div>
           </div>
         </div>
       </div></section>
-      {rel.length > 0 && <section className="alt"><div className="wrap"><div className="sec-head"><div className="stack" style={{ gap: 10 }}><span className="eyebrow">More from {themeName(p.theme_id)}</span><h2>You might also love</h2></div></div><div className="pgrid">{rel.map(x => <ProductCard key={x.id} p={x} />)}</div></div></section>}
+      {rel.length > 0 && <section className="alt"><div className="wrap"><div className="sec-head"><div className="stack" style={{ gap: 10 }}><span className="eyebrow">More {themeName(p.theme_id) ? 'from ' + themeName(p.theme_id) : typeName(p.type).toLowerCase()}</span><h2>You might also love</h2></div></div><div className="pgrid">{rel.map(x => <ProductCard key={x.id} p={x} />)}</div></div></section>}
     </>
   )
 }

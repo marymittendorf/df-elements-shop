@@ -5,11 +5,11 @@ import { useAdmin } from './AdminApp'
 import { TYPES, typeName, fullName, specialOn } from '../lib/format'
 
 const inputS = { minHeight: 46, padding: '0 16px', borderRadius: 50, border: '1px solid var(--line2)', background: '#fff' }
-const FILTERS = {
-  All: () => true, Coasters: p => p.type === 'coaster', 'Phone stands': p => p.type === 'stand', 'Decor boards': p => p.type === 'board',
-  'On special': p => specialOn(p), New: p => p.is_new, 'Low stock': p => !p.is_custom && p.stock < 6, Hidden: p => !p.is_active,
+const filters = () => ({
+  All: () => true, ...Object.fromEntries(TYPES.map(t => [t.label, p => p.type === t.key])),
+  'On special': p => specialOn(p), New: p => p.is_new, 'Made to order': p => p.made_to_order, 'Low stock': p => !p.is_custom && !p.made_to_order && p.stock < 6, Hidden: p => !p.is_active,
   'Price needed': p => p.price == null, 'Trade price needed': p => !p.is_custom && p.wholesale_price == null, 'Name check': p => p.needs_review
-}
+})
 // Trade prices live in their own table: an empty price removes it
 export const saveWholesale = (id, price) => (price == null || price <= 0
   ? supabase.from('wholesale_prices').delete().eq('product_id', id)
@@ -38,6 +38,7 @@ export function Products() {
   }
   if (!rows) return <p className="muted">Loading…</p>
   const s = q.toLowerCase().trim()
+  const FILTERS = filters()
   const list = rows.filter(p => FILTERS[tab](p) && (!theme || String(p.theme_id) === theme) && (!s || ((p.sku || '') + ' ' + p.name + ' ' + p.variant).toLowerCase().includes(s)))
   const tn = id => (themes.find(t => t.id === id) || {}).name || ''
   const cell = (p, k, label, style) => <input key={p.id + k + p[k]} className="cellin" type="number" min="0" step="0.01" inputMode="decimal" aria-label={label + ' for ' + fullName(p)} defaultValue={p[k] ?? ''} placeholder={k === 'price' ? 'Needed' : 'None'} style={style} onBlur={e => { const v = num(e.target.value); if (v !== (p[k] == null ? null : Number(p[k]))) save(p, { [k]: v }) }} onKeyDown={e => e.key === 'Enter' && e.target.blur()} />
@@ -58,7 +59,7 @@ export function Products() {
             <td>{cell(p, 'price', 'Price', p.price == null ? { borderColor: 'var(--warn-fg)', background: 'var(--warn-bg)' } : undefined)}</td>
             <td>{cell(p, 'special_price', 'Special price')}</td>
             <td>{p.is_custom ? <span className="muted" style={{ fontSize: 13 }}>Retail only</span> : cell(p, 'wholesale_price', 'Wholesale price', { borderColor: 'var(--olive)' })}</td>
-            <td>{p.is_custom ? <span className="muted" style={{ fontSize: 13 }}>Made to order</span> : <div className="mini-qty" style={{ margin: 0 }}><button onClick={() => save(p, { stock: Math.max(0, p.stock - 1) })} aria-label="One less">&minus;</button><input key={p.id + 's' + p.stock} className="cellin" style={{ width: 64, textAlign: 'center' }} type="number" min="0" step="1" aria-label={'Stock for ' + fullName(p)} defaultValue={p.stock} onBlur={e => { const v = Math.round(num(e.target.value) || 0); if (v !== p.stock) save(p, { stock: v }) }} onKeyDown={e => e.key === 'Enter' && e.target.blur()} /><button onClick={() => save(p, { stock: p.stock + 1 })} aria-label="One more">+</button></div>}</td>
+            <td>{p.is_custom || p.made_to_order ? <span className="muted" style={{ fontSize: 13 }}>Made to order</span> : <div className="mini-qty" style={{ margin: 0 }}><button onClick={() => save(p, { stock: Math.max(0, p.stock - 1) })} aria-label="One less">&minus;</button><input key={p.id + 's' + p.stock} className="cellin" style={{ width: 64, textAlign: 'center' }} type="number" min="0" step="1" aria-label={'Stock for ' + fullName(p)} defaultValue={p.stock} onBlur={e => { const v = Math.round(num(e.target.value) || 0); if (v !== p.stock) save(p, { stock: v }) }} onKeyDown={e => e.key === 'Enter' && e.target.blur()} /><button onClick={() => save(p, { stock: p.stock + 1 })} aria-label="One more">+</button></div>}</td>
             <td><div className="chips" style={{ gap: 4 }}>
               <button className="pill" style={{ border: 0, cursor: 'pointer', background: p.is_active ? 'var(--grey-bg)' : '#F8D7CF', color: p.is_active ? 'var(--muted2)' : '#6B2413' }} aria-pressed={p.is_active} onClick={() => save(p, { is_active: !p.is_active })}>{p.is_active ? 'In shop' : 'Hidden'}</button>
               <button className="pill" style={{ border: 0, cursor: 'pointer', background: p.is_new ? 'var(--surface)' : '#fff', color: 'var(--primary-dk)', outline: '1px solid var(--line2)' }} aria-pressed={p.is_new} onClick={() => save(p, { is_new: !p.is_new })}>New</button>
@@ -69,7 +70,7 @@ export function Products() {
   )
 }
 
-const BLANK = { sku: '', name: '', variant: '', type: 'coaster', theme_id: null, short_description: '', care: 'Place on any flat surface. Wipe clean with a damp cloth and let it dry. Keep out of standing water and the dishwasher.', material: 'MDF, UV printed on the top face.', size: '', price: null, special_price: null, special_ends: null, wholesale_price: null, cost_price: null, stock: 0, is_new: true, is_custom: false, is_active: true, needs_review: false, image_url: '', sort_order: 999 }
+const BLANK = { sku: '', name: '', variant: '', type: 'coaster', theme_id: null, short_description: '', care: 'Place on any flat surface. Wipe clean with a damp cloth and let it dry. Keep out of standing water and the dishwasher.', material: 'MDF, UV printed on the top face.', size: '', price: null, special_price: null, special_ends: null, wholesale_price: null, cost_price: null, stock: 0, made_to_order: false, is_new: true, is_custom: false, is_active: true, needs_review: false, image_url: '', sort_order: 999 }
 
 export function ProductEdit() {
   const { id } = useParams()
@@ -113,7 +114,7 @@ export function ProductEdit() {
     const wr = await saveWholesale(res.data.id, trade)
     if (wr.error) { toast('Saved, but the trade price did not save: ' + wr.error.message); return }
     if (isNew && !res.data.sku) {
-      const sku = ({ coaster: 'CST', stand: 'STD', board: 'BRD' }[res.data.type]) + String(res.data.id).padStart(3, '0')
+      const sku = (({ coaster: 'CST', stand: 'STD', board: 'BRD', home: 'HOM', gifts: 'GFT' }[res.data.type]) || res.data.type.slice(0, 3).toUpperCase()) + String(res.data.id).padStart(3, '0')
       await supabase.from('products').update({ sku }).eq('id', res.data.id)
     }
     toast(isNew ? 'Product added' : 'Saved'); nav('/admin/products')
@@ -132,7 +133,7 @@ export function ProductEdit() {
           <input id="pe-img" type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e => e.target.files[0] && upload(e.target.files[0])} />
           <span className="muted" style={{ fontSize: 13 }}>Square photos look best. JPG, PNG or WebP up to 5 MB.</span>
           <div className="stack" style={{ gap: 10, borderTop: '1px solid var(--line)', paddingTop: 14 }}>
-            {[['is_active', 'Show in the shop'], ['is_new', 'Mark as New'], ['is_custom', 'Custom photo product (customer uploads a photo)'], ['needs_review', 'Flag: check the name']].map(([k, l]) => <label key={k} style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: 15 }}><input type="checkbox" checked={!!p[k]} onChange={e => set(k, e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--primary)' }} />{l}</label>)}
+            {[['is_active', 'Show in the shop'], ['is_new', 'Mark as New'], ['made_to_order', 'Made to order (never sold out, stock not counted)'], ['is_custom', 'Custom photo product (customer uploads a photo)'], ['needs_review', 'Flag: check the name']].map(([k, l]) => <label key={k} style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: 15 }}><input type="checkbox" checked={!!p[k]} onChange={e => set(k, e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--primary)' }} />{l}</label>)}
           </div>
         </div>
         <div className="card panel">
@@ -145,7 +146,7 @@ export function ProductEdit() {
           <label className="field" htmlFor="pe-short">Description<textarea id="pe-short" rows={3} value={p.short_description} onChange={e => set('short_description', e.target.value)} /></label>
           <div className="grid2">{F('material', 'Material')}{F('size', 'Size', { placeholder: 'e.g. 100 x 100 mm' })}</div>
           <label className="field" htmlFor="pe-care">Care<textarea id="pe-care" rows={2} value={p.care} onChange={e => set('care', e.target.value)} /></label>
-          <div className="grid2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))' }}>{N('price', 'Price (R)')}{N('special_price', 'Special (R)')}{N('wholesale_price', 'Wholesale (R)')}{N('cost_price', 'Your cost (R)')}{N('stock', 'Stock')}</div>
+          <div className="grid2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))' }}>{N('price', 'Price (R)')}{N('special_price', 'Special (R)')}{N('wholesale_price', 'Wholesale (R)')}{N('cost_price', 'Your cost (R)')}{p.made_to_order || p.is_custom ? null : N('stock', 'Stock')}</div>
           <p className="muted" style={{ fontSize: 13, marginTop: -6 }}>Your cost is what one item costs you to make (blank plus ink). It is private and is used for the profit report.</p>
           <div className="grid2"><label className="field" htmlFor="pe-se">Special ends (optional)<input id="pe-se" type="date" value={dt} onChange={e => set('special_ends', e.target.value ? new Date(e.target.value + 'T23:59:59+02:00').toISOString() : null)} /></label>{N('sort_order', 'Display order (lower shows first)')}</div>
         </div>

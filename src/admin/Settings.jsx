@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAdmin } from './AdminApp'
+import { setTypes } from '../lib/format'
 
 export function Settings() {
   const { toast } = useAdmin()
-  const [s, setS] = useState(null); const [del, setDel] = useState([]); const [themes, setThemes] = useState([])
+  const [s, setS] = useState(null); const [del, setDel] = useState([]); const [themes, setThemes] = useState([]); const [types, setTypesRows] = useState([])
   const load = useCallback(async () => {
-    const [{ data: st }, { data: d }, { data: t }] = await Promise.all([supabase.from('settings').select('*').eq('id', 1).single(), supabase.from('delivery_options').select('*').order('sort_order'), supabase.from('themes').select('*').order('sort_order')])
-    setS(st); setDel(d || []); setThemes(t || [])
+    const [{ data: st }, { data: d }, { data: t }, { data: ty }] = await Promise.all([supabase.from('settings').select('*').eq('id', 1).single(), supabase.from('delivery_options').select('*').order('sort_order'), supabase.from('themes').select('*').order('sort_order'), supabase.from('product_types').select('*').order('sort_order')])
+    setS(st); setDel(d || []); setThemes(t || []); setTypesRows(ty || []); setTypes(ty)
   }, [])
   useEffect(() => { load() }, [load])
   if (!s) return <p className="muted">Loading…</p>
@@ -17,6 +18,13 @@ export function Settings() {
   const addDel = async () => { await supabase.from('delivery_options').insert({ name: 'New delivery option', rate: 0, sort_order: del.length + 1, is_active: false }); load() }
   const saveTheme = async t => { const { error } = await supabase.from('themes').update({ name: t.name, subtitle: t.subtitle, description: t.description }).eq('id', t.id); toast(error ? error.message : 'Saved: ' + t.name) }
   const addTheme = async () => { await supabase.from('themes').insert({ name: 'New theme ' + (themes.length + 1), sort_order: themes.length + 1 }); load() }
+  const saveType = async t => { const { error } = await supabase.from('product_types').update({ label: t.label.trim(), blurb: t.blurb, is_active: t.is_active }).eq('key', t.key); toast(error ? error.message : 'Saved: ' + t.label); load() }
+  const addType = async () => {
+    const label = window.prompt('Name of the new product type, for example Candles'); if (!label || !label.trim()) return
+    const key = label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'type' + (types.length + 1)
+    const { error } = await supabase.from('product_types').insert({ key, label: label.trim(), sort_order: types.length + 1 })
+    toast(error ? (error.message.includes('duplicate') ? 'That type already exists' : error.message) : 'Added: ' + label.trim()); load()
+  }
   const upd = (arr, setArr, i, k, v) => setArr(arr.map((x, j) => (j === i ? { ...x, [k]: v } : x)))
   const endDate = s.specials_end ? new Date(s.specials_end).toISOString().slice(0, 10) : ''
   return (
@@ -40,6 +48,14 @@ export function Settings() {
           <label className="field">Rate (R)<input type="number" min="0" value={d.rate} onChange={e => upd(del, setDel, i, 'rate', e.target.value)} /></label>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', minHeight: 48 }}><input type="checkbox" checked={d.is_active} onChange={e => upd(del, setDel, i, 'is_active', e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--primary)' }} />On</label>
           <button className="btn ghost sm" onClick={() => saveDel(d)}>Save</button>
+        </div>)}
+      </div>
+      <div className="card panel"><div className="ahead"><div><h2 style={{ fontSize: 26 }}>Product types</h2><p className="muted" style={{ fontSize: 14 }}>These are the groups in the shop menu and filters. Hidden types disappear from the shop.</p></div><button className="btn ghost sm" onClick={addType}>Add a type</button></div>
+        {types.map((t, i) => <div key={t.key} className="grid2" style={{ gridTemplateColumns: '1fr 2fr auto auto', alignItems: 'end' }}>
+          <label className="field">Name<input value={t.label} onChange={e => upd(types, setTypesRows, i, 'label', e.target.value)} /></label>
+          <label className="field">Short description<input value={t.blurb || ''} onChange={e => upd(types, setTypesRows, i, 'blurb', e.target.value)} /></label>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', minHeight: 48 }}><input type="checkbox" checked={t.is_active} onChange={e => upd(types, setTypesRows, i, 'is_active', e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--primary)' }} />Shown</label>
+          <button className="btn ghost sm" onClick={() => saveType(t)}>Save</button>
         </div>)}
       </div>
       <div className="card panel"><div className="ahead"><h2 style={{ fontSize: 26 }}>Themes</h2><button className="btn ghost sm" onClick={addTheme}>Add a theme</button></div>
