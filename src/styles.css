@@ -553,3 +553,4 @@ table.t.rt td.num,table.t.stacktable td.num{white-space:nowrap}
 @media (max-width:1100px){.costgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.orderres{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:640px){.costgrid{grid-template-columns:1fr}.orderres{grid-template-columns:1fr 1fr}.costlist{grid-template-columns:1fr}}
 .costing .legend{flex-wrap:wrap;gap:6px 12px}
+.groupprice{border-color:var(--olive)!important}
