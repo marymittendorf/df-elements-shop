@@ -69,7 +69,7 @@ export function Products() {
   )
 }
 
-const BLANK = { sku: '', name: '', variant: '', type: 'coaster', theme_id: null, short_description: '', care: 'Place on any flat surface. Wipe clean with a damp cloth and let it dry. Keep out of standing water and the dishwasher.', material: 'MDF, UV printed on the top face.', size: '', price: null, special_price: null, special_ends: null, wholesale_price: null, stock: 0, is_new: true, is_custom: false, is_active: true, needs_review: false, image_url: '', sort_order: 999 }
+const BLANK = { sku: '', name: '', variant: '', type: 'coaster', theme_id: null, short_description: '', care: 'Place on any flat surface. Wipe clean with a damp cloth and let it dry. Keep out of standing water and the dishwasher.', material: 'MDF, UV printed on the top face.', size: '', price: null, special_price: null, special_ends: null, wholesale_price: null, cost_price: null, stock: 0, is_new: true, is_custom: false, is_active: true, needs_review: false, image_url: '', sort_order: 999 }
 
 export function ProductEdit() {
   const { id } = useParams()
@@ -99,7 +99,7 @@ export function ProductEdit() {
   const save = async () => {
     if (!p.name.trim()) { toast('Give the design a name'); return }
     const row = { ...p }
-    ;['price', 'special_price', 'wholesale_price'].forEach(k => { row[k] = row[k] === '' || row[k] == null ? null : Number(row[k]) })
+    ;['price', 'special_price', 'wholesale_price', 'cost_price'].forEach(k => { row[k] = row[k] === '' || row[k] == null ? null : Number(row[k]) })
     row.stock = Math.round(Number(row.stock) || 0); row.theme_id = row.theme_id ? Number(row.theme_id) : null
     row.special_ends = row.special_ends || null
     if (row.special_price != null && (row.price == null || row.special_price >= row.price)) { toast('A special price must be lower than the normal price'); return }
@@ -145,7 +145,8 @@ export function ProductEdit() {
           <label className="field" htmlFor="pe-short">Description<textarea id="pe-short" rows={3} value={p.short_description} onChange={e => set('short_description', e.target.value)} /></label>
           <div className="grid2">{F('material', 'Material')}{F('size', 'Size', { placeholder: 'e.g. 100 x 100 mm' })}</div>
           <label className="field" htmlFor="pe-care">Care<textarea id="pe-care" rows={2} value={p.care} onChange={e => set('care', e.target.value)} /></label>
-          <div className="grid2" style={{ gridTemplateColumns: 'repeat(4,minmax(0,1fr))' }}>{N('price', 'Price (R)')}{N('special_price', 'Special (R)')}{N('wholesale_price', 'Wholesale (R)')}{N('stock', 'Stock')}</div>
+          <div className="grid2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))' }}>{N('price', 'Price (R)')}{N('special_price', 'Special (R)')}{N('wholesale_price', 'Wholesale (R)')}{N('cost_price', 'Your cost (R)')}{N('stock', 'Stock')}</div>
+          <p className="muted" style={{ fontSize: 13, marginTop: -6 }}>Your cost is what one item costs you to make (blank plus ink). It is private and is used for the profit report.</p>
           <div className="grid2"><label className="field" htmlFor="pe-se">Special ends (optional)<input id="pe-se" type="date" value={dt} onChange={e => set('special_ends', e.target.value ? new Date(e.target.value + 'T23:59:59+02:00').toISOString() : null)} /></label>{N('sort_order', 'Display order (lower shows first)')}</div>
         </div>
       </div>

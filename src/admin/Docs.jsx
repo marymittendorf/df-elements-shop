@@ -11,11 +11,13 @@ const box = <span style={{ display: 'inline-block', width: 20, height: 20, borde
 
 function Invoice({ o, s }) {
   const paid = o.status !== 'awaiting_payment' && o.status !== 'cancelled'
+  const vat = Number(o.vat_rate) > 0
+  const title = (vat ? 'Tax invoice' : 'Invoice')
   return (
     <div className="paper">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div><div>{LOGO}</div><div className="muted" style={{ lineHeight: 1.6, marginTop: 8, whiteSpace: 'pre-line' }}>{[s.address, [s.email, s.phone].filter(Boolean).join(' · '), s.vat_number ? 'VAT ' + s.vat_number : ''].filter(Boolean).join('\n')}</div></div>
-        <div style={{ textAlign: 'right' }}><div className="eyebrow">{paid ? 'Invoice' : 'Pro forma invoice'}</div><h2>{paid ? 'INV ' : 'PF '}{o.order_no}</h2><div>{fmtDate(o.created_at)}</div>
+        <div style={{ textAlign: 'right' }}><div className="eyebrow">{paid ? title : 'Pro forma invoice'}</div><h2>{paid ? 'INV ' : 'PF '}{o.order_no}</h2><div>{fmtDate(o.created_at)}</div>
           <span className="pill" style={{ background: paid ? 'var(--surface)' : 'var(--warn-bg)', color: paid ? 'var(--primary-dk)' : 'var(--warn-fg)', marginTop: 6 }}>{paid ? 'PAID · EFT' + (o.paid_at ? ' · ' + fmtDate(o.paid_at) : '') : 'AWAITING PAYMENT'}</span></div>
       </div>
       <div className="grid2" style={{ margin: '28px 0', padding: '18px 22px', borderRadius: 14, background: 'var(--soft)' }}>
@@ -27,7 +29,9 @@ function Invoice({ o, s }) {
       <div className="stack num" style={{ gap: 6, margin: '20px 0 0 auto', width: 'min(300px,100%)' }}>
         <div className="sumrow"><span>Subtotal</span><span>{R(o.subtotal)}</span></div>
         <div className="sumrow"><span>Delivery</span><span>{R(o.delivery_fee)}</span></div>
-        <div className="sumrow" style={{ fontWeight: 700, fontSize: 18, borderTop: '2px solid #3B2A20', paddingTop: 8 }}><span>{paid ? 'Total paid' : 'Amount due'}</span><span>{R(o.total)}</span></div>
+        <div className="sumrow" style={{ fontWeight: 700, fontSize: 18, borderTop: '2px solid #3B2A20', paddingTop: 8 }}><span>{paid ? 'Total paid' : 'Amount due'}{vat ? ' (incl VAT)' : ''}</span><span>{R(o.total)}</span></div>
+        {vat && <div className="sumrow muted" style={{ fontSize: 13 }}><span>Includes VAT at {Number(o.vat_rate)}%</span><span>{R(o.vat_amount)}</span></div>}
+        {vat && <div className="sumrow muted" style={{ fontSize: 13 }}><span>Total excluding VAT</span><span>{R(Number(o.total) - Number(o.vat_amount))}</span></div>}
       </div>
       {!paid && <div className="stack" style={{ gap: 8, marginTop: 24 }}><div className="eyebrow">Pay by EFT · reference {o.order_no}</div>
         <div style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--soft)', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 16px' }}><b>Bank</b><span>{s.bank_name}</span><b>Account name</b><span>{s.account_name}</span><b>Account number</b><span>{s.account_number}</span><b>Branch code</b><span>{s.branch_code}</span></div></div>}

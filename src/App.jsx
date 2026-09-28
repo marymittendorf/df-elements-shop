@@ -5,6 +5,7 @@ import { Header, Footer, CartDrawer, Toast } from './components/ShopParts'
 import { Home, Shop, Product, Custom, Specials, GiftSets, Story, NotFound } from './pages/Browse'
 import { Checkout, OrderDone, Account } from './pages/Buy'
 import { Wholesale } from './pages/Wholesale'
+import { Help } from './pages/Help'
 
 const AdminApp = lazy(() => import('./admin/AdminApp'))
 
@@ -37,6 +38,7 @@ export default function App() {
                 <Route path="/story" element={<Story />} />
                 <Route path="/account" element={<Account />} />
                 <Route path="/wholesale" element={<Wholesale />} />
+                <Route path="/help" element={<Help />} />
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/order/:no" element={<OrderDone />} />
                 <Route path="*" element={<NotFound />} />

@@ -8,6 +8,9 @@ import { Promos } from './Promos'
 import { Settings } from './Settings'
 import { WholesaleAdmin } from './Wholesale'
 import { DocsModal } from './Docs'
+import { Reports } from './Reports'
+import { Expenses } from './Expenses'
+import { Faqs } from './Faqs'
 
 const ACtx = createContext(null)
 export const useAdmin = () => useContext(ACtx)
@@ -37,7 +40,7 @@ function Login({ onDone }) {
   )
 }
 
-const NAV = [['/admin', 'Dashboard', true], ['/admin/orders', 'Orders'], ['/admin/products', 'Products'], ['/admin/wholesale', 'Wholesale'], ['/admin/promos', 'Specials and sets'], ['/admin/settings', 'Settings']]
+const NAV = [['/admin', 'Dashboard', true], ['/admin/orders', 'Orders'], ['/admin/products', 'Products'], ['/admin/wholesale', 'Wholesale'], ['/admin/promos', 'Specials and sets'], ['/admin/reports', 'Reports'], ['/admin/expenses', 'Expenses'], ['/admin/faqs', 'Q and A'], ['/admin/settings', 'Settings']]
 
 export default function AdminApp() {
   const [state, setState] = useState('checking') // checking | login | ok
@@ -79,7 +82,7 @@ export default function AdminApp() {
   return (
     <ACtx.Provider value={{ toast, setDoc, me, refreshCounts }}>
       <div className="admin">
-        <nav className="side" aria-label="Admin">
+        <nav className="side noprint" aria-label="Admin">
           <div className="brand"><div>DF Elements</div><div className="eyebrow" style={{ color: '#D9B79C' }}>Shop admin</div></div>
           {NAV.map(([to, l, end]) => <NavLink key={to} to={to} end={end}><span className="dot" />{l}{to === '/admin/orders' && toPrint ? <span className="cnt">{toPrint}</span> : null}{to === '/admin/wholesale' && wsDue ? <span className="cnt">{wsDue}</span> : null}</NavLink>)}
           <a href="/" target="_blank" rel="noreferrer"><span className="dot" />View live shop</a>
@@ -94,6 +97,9 @@ export default function AdminApp() {
             <Route path="products/:id" element={<ProductEdit />} />
             <Route path="promos" element={<Promos />} />
             <Route path="wholesale" element={<WholesaleAdmin />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="expenses" element={<Expenses />} />
+            <Route path="faqs" element={<Faqs />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Routes>

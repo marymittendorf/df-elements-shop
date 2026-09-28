@@ -66,6 +66,19 @@ This makes the "confirm your email" and "reset your password" links for customer
 6. Branding requests (client logos) are under **Wholesale**, then **Branding requests**. Add your quote as a note, which the client can see, and mark it **Quote sent**.
 7. Trade prices are in the **Wholesale (R)** column in **Products**. A design with no trade price shows as "On request" to clients.
 
+## Q and A, expenses and reports
+
+1. Upload the **src** folder, the **supabase** folder and this file to GitHub as before, and commit to main.
+2. In Supabase, open the **SQL Editor**, paste in **supabase/06_qa_reports_expenses.sql** and click **Run**.
+3. In admin, open **Settings**. If DF Elements is VAT registered, switch on **Charging VAT** and save. Orders placed from then on show as tax invoices with the VAT amount. You can switch it off again at any time.
+4. In **Products**, fill in **Your cost (R)** on each product so the reports can show your profit per item.
+
+### Where to find things
+
+* **Q and A** in admin: add, edit, reorder, hide or delete questions. Customers see them on the Help page.
+* **Expenses**: add each expense with a photo or PDF of the receipt. The 15% button works out the VAT for you. Set monthly budgets under **Budgets and categories**. Things you pay every month go under **Recurring** and are added by themselves on the right day.
+* **Reports**: choose a period at the top, then pick a report. Each one has **Download CSV** for your bookkeeper and **Print**.
+
 ## When the domain has moved to xneelo
 
 1. In Vercel, open the project, then **Settings**, then **Domains**, and add your domain.
@@ -84,6 +97,5 @@ This makes the "confirm your email" and "reset your password" links for customer
 ## Still to come
 
 * **Order emails** (confirmation with bank details, payment received, shipped) through Resend. This needs your domain on xneelo so the emails come from your own address.
-* **Phase 2:** the wholesale portal.
 * **Phase 3:** rewards points and the AI listing helper.
 * **Before launch:** your story, delivery and returns, terms and conditions, and a POPIA privacy policy. They show as placeholders on the Our story page for now.
