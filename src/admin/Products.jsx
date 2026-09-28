@@ -16,16 +16,66 @@ export const saveWholesale = (id, price) => (price == null || price <= 0
   : supabase.from('wholesale_prices').upsert({ product_id: id, price }, { onConflict: 'product_id' }))
 const num = v => (String(v).trim() === '' ? null : Math.max(0, Number(String(v).replace(',', '.'))))
 
+// Change retail and trade prices for a whole group in one go
+function GroupPrices({ rows, cards, onDone, onClose }) {
+  const { toast } = useAdmin()
+  const groups = [
+    ...cards.map(c => ({ key: 'c' + c.id, label: c.name, test: p => p.cost_item_id === c.id })),
+    ...TYPES.map(t => ({ key: 't' + t.key, label: 'All ' + t.label.toLowerCase(), test: p => p.type === t.key }))
+  ]
+  const [g, setG] = useState(groups[0] ? groups[0].key : '')
+  const [retail, setRetail] = useState(''); const [trade, setTrade] = useState(''); const [custom, setCustom] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const grp = groups.find(x => x.key === g)
+  const list = grp ? rows.filter(p => grp.test(p) && (custom || !p.is_custom)) : []
+  const range = k => { const v = list.map(p => p[k]).filter(x => x != null).map(Number); if (!v.length) return 'none'; const a = Math.min(...v), b = Math.max(...v); return a === b ? 'R' + a.toFixed(2) : 'R' + a.toFixed(2) + ' to R' + b.toFixed(2) }
+  const r = num(retail), t = num(trade)
+  const specials = r != null ? list.filter(p => p.special_price != null && Number(p.special_price) >= r).length : 0
+  const apply = async () => {
+    if (!list.length) { toast('No products in this group'); return }
+    if (r == null && t == null) { toast('Type a retail price, a trade price or both'); return }
+    if (!window.confirm('Change ' + list.length + ' products in ' + grp.label + '?' + (r != null ? '\nRetail: R' + r.toFixed(2) : '') + (t != null ? '\nTrade: R' + t.toFixed(2) : '') + (specials ? '\n\n' + specials + (specials === 1 ? ' special' : ' specials') + ' at or above the new price will be ended.' : ''))) return
+    setBusy(true)
+    const ids = list.map(p => p.id)
+    let err = null
+    if (r != null) {
+      if (specials) { const x = await supabase.from('products').update({ special_price: null, special_ends: null }).in('id', ids).gte('special_price', r); err = err || x.error }
+      const x = await supabase.from('products').update({ price: r }).in('id', ids); err = err || x.error
+    }
+    if (t != null) {
+      const tr = list.filter(p => !p.is_custom).map(p => ({ product_id: p.id, price: t }))
+      if (tr.length) { const x = await supabase.from('wholesale_prices').upsert(tr, { onConflict: 'product_id' }); err = err || x.error }
+    }
+    setBusy(false)
+    if (err) { toast(err.message); onDone(); return }
+    toast(grp.label + ': ' + list.length + ' products updated'); setRetail(''); setTrade(''); onDone()
+  }
+  return (
+    <div className="card panel groupprice">
+      <div className="ahead"><h2 style={{ fontSize: 22 }}>Change prices for a whole group</h2><button className="linkbtn" onClick={onClose}>Close</button></div>
+      <div className="grid3">
+        <label className="field" htmlFor="gp-g">Group<select id="gp-g" value={g} onChange={e => setG(e.target.value)}>{groups.map(x => <option key={x.key} value={x.key}>{x.label} ({rows.filter(x.test).length})</option>)}</select></label>
+        <label className="field" htmlFor="gp-r">New retail price (R)<input id="gp-r" type="number" min="0" step="0.01" inputMode="decimal" placeholder="Leave empty to keep" value={retail} onChange={e => setRetail(e.target.value)} /></label>
+        <label className="field" htmlFor="gp-t">New trade price (R)<input id="gp-t" type="number" min="0" step="0.01" inputMode="decimal" placeholder="Leave empty to keep" value={trade} onChange={e => setTrade(e.target.value)} /></label>
+      </div>
+      <label style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: 14 }}><input type="checkbox" checked={custom} onChange={e => setCustom(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--primary)' }} />Include custom photo items (retail only, they have no trade price)</label>
+      <div className="note"><span><b>{list.length} products</b> will change. Retail now {range('price')}, trade now {range('wholesale_price')}.{specials ? ' ' + specials + (specials === 1 ? ' special will end because it is' : ' specials will end because they are') + ' not below the new price.' : ''}</span></div>
+      <div className="row"><button className="btn sm" disabled={busy || !list.length} onClick={apply}>{busy ? 'Saving…' : 'Change ' + list.length + ' products'}</button></div>
+    </div>
+  )
+}
+
 export function Products() {
   const { toast } = useAdmin()
   const nav = useNavigate()
   const [rows, setRows] = useState(null)
   const [themes, setThemes] = useState([])
   const [tab, setTab] = useState('All'); const [q, setQ] = useState(''); const [theme, setTheme] = useState('')
+  const [cards, setCards] = useState([]); const [group, setGroup] = useState(false)
   const load = useCallback(async () => {
-    const [{ data }, { data: th }, { data: wp }] = await Promise.all([supabase.from('products').select('*').order('sort_order').order('id'), supabase.from('themes').select('*').order('sort_order'), supabase.from('wholesale_prices').select('*')])
+    const [{ data }, { data: th }, { data: wp }, { data: ci }] = await Promise.all([supabase.from('products').select('*').order('sort_order').order('id'), supabase.from('themes').select('*').order('sort_order'), supabase.from('wholesale_prices').select('*'), supabase.from('cost_items').select('id, name').order('sort_order')])
     const m = {}; (wp || []).forEach(x => { m[x.product_id] = Number(x.price) })
-    setRows((data || []).map(p => ({ ...p, wholesale_price: m[p.id] ?? null }))); setThemes(th || [])
+    setRows((data || []).map(p => ({ ...p, wholesale_price: m[p.id] ?? null }))); setThemes(th || []); setCards(ci || [])
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -44,7 +94,8 @@ export function Products() {
   const cell = (p, k, label, style) => <input key={p.id + k + p[k]} className="cellin" type="number" min="0" step="0.01" inputMode="decimal" aria-label={label + ' for ' + fullName(p)} defaultValue={p[k] ?? ''} placeholder={k === 'price' ? 'Needed' : 'None'} style={style} onBlur={e => { const v = num(e.target.value); if (v !== (p[k] == null ? null : Number(p[k]))) save(p, { [k]: v }) }} onKeyDown={e => e.key === 'Enter' && e.target.blur()} />
   return (
     <>
-      <div className="ahead"><div><h1>Products</h1><p className="muted">Type a new price or stock count straight into the table. It saves when you click away. Tap a design to edit everything else.</p></div><Link className="btn sm" to="/admin/products/new">Add a product</Link></div>
+      <div className="ahead"><div><h1>Products</h1><p className="muted">Type a new price or stock count straight into the table. It saves when you click away. Tap a design to edit everything else.</p></div><div className="row"><button className="btn ghost sm" onClick={() => setGroup(!group)}>Change group prices</button><Link className="btn sm" to="/admin/products/new">Add a product</Link></div></div>
+      {group && <GroupPrices rows={rows} cards={cards} onDone={load} onClose={() => setGroup(false)} />}
       <div className="row"><input type="search" aria-label="Search products" placeholder="Search by name or SKU" value={q} onChange={e => setQ(e.target.value)} style={{ ...inputS, padding: '0 20px', flex: '1 1 240px' }} />
         <select aria-label="Theme" value={theme} onChange={e => setTheme(e.target.value)} style={inputS}><option value="">All themes</option>{themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
       <div className="chips">{Object.keys(FILTERS).map(t => <button key={t} className="chip" aria-pressed={tab === t} onClick={() => setTab(t)}>{t} ({rows.filter(FILTERS[t]).length})</button>)}</div>
