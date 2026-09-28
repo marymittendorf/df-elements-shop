@@ -6,6 +6,7 @@ import { Orders, OrderDetail } from './Orders'
 import { Products, ProductEdit } from './Products'
 import { Promos } from './Promos'
 import { Settings } from './Settings'
+import { WholesaleAdmin } from './Wholesale'
 import { DocsModal } from './Docs'
 
 const ACtx = createContext(null)
@@ -36,7 +37,7 @@ function Login({ onDone }) {
   )
 }
 
-const NAV = [['/admin', 'Dashboard', true], ['/admin/orders', 'Orders'], ['/admin/products', 'Products'], ['/admin/promos', 'Specials and sets'], ['/admin/settings', 'Settings']]
+const NAV = [['/admin', 'Dashboard', true], ['/admin/orders', 'Orders'], ['/admin/products', 'Products'], ['/admin/wholesale', 'Wholesale'], ['/admin/promos', 'Specials and sets'], ['/admin/settings', 'Settings']]
 
 export default function AdminApp() {
   const [state, setState] = useState('checking') // checking | login | ok
@@ -44,6 +45,7 @@ export default function AdminApp() {
   const [toastMsg, setToastMsg] = useState('')
   const [doc, setDoc] = useState(null)
   const [toPrint, setToPrint] = useState(0)
+  const [wsDue, setWsDue] = useState(0)
   const tRef = useRef()
   const nav = useNavigate()
 
@@ -60,6 +62,11 @@ export default function AdminApp() {
   const refreshCounts = useCallback(async () => {
     const { count } = await supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['awaiting_payment', 'paid'])
     setToPrint(count || 0)
+    const [{ count: a }, { count: b }] = await Promise.all([
+      supabase.from('wholesale_clients').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('branding_requests').select('id', { count: 'exact', head: true }).eq('status', 'new')
+    ])
+    setWsDue((a || 0) + (b || 0))
   }, [])
   useEffect(() => { if (state === 'ok') refreshCounts() }, [state, refreshCounts])
 
@@ -74,7 +81,7 @@ export default function AdminApp() {
       <div className="admin">
         <nav className="side" aria-label="Admin">
           <div className="brand"><div>DF Elements</div><div className="eyebrow" style={{ color: '#D9B79C' }}>Shop admin</div></div>
-          {NAV.map(([to, l, end]) => <NavLink key={to} to={to} end={end}><span className="dot" />{l}{to === '/admin/orders' && toPrint ? <span className="cnt">{toPrint}</span> : null}</NavLink>)}
+          {NAV.map(([to, l, end]) => <NavLink key={to} to={to} end={end}><span className="dot" />{l}{to === '/admin/orders' && toPrint ? <span className="cnt">{toPrint}</span> : null}{to === '/admin/wholesale' && wsDue ? <span className="cnt">{wsDue}</span> : null}</NavLink>)}
           <a href="/" target="_blank" rel="noreferrer"><span className="dot" />View live shop</a>
           <div className="foot" style={{ marginTop: 'auto', padding: '16px 12px 0', borderTop: '1px solid #7A4A33', fontSize: 13 }}>Signed in as {me ? me.username : ''}<br /><button className="linkbtn" style={{ color: '#F1E4D3' }} onClick={signOut}>Sign out</button></div>
         </nav>
@@ -86,6 +93,7 @@ export default function AdminApp() {
             <Route path="products" element={<Products />} />
             <Route path="products/:id" element={<ProductEdit />} />
             <Route path="promos" element={<Promos />} />
+            <Route path="wholesale" element={<WholesaleAdmin />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Routes>

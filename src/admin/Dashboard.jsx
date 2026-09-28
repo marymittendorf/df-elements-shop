@@ -13,22 +13,24 @@ export function Dashboard() {
   useEffect(() => {
     (async () => {
       const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0)
-      const [open, latest, month, low, special] = await Promise.all([
-        supabase.from('orders').select('id, order_no, status, proof_approved_at, order_items(name, qty, is_custom)').in('status', ['awaiting_payment', 'paid']),
+      const [open, latest, month, low, special, apps, brand] = await Promise.all([
+        supabase.from('orders').select('id, order_no, status, proof_approved_at, order_items(name, qty, is_custom, from_stock_qty)').in('status', ['awaiting_payment', 'paid']),
         supabase.from('orders').select('id, order_no, first_name, last_name, total, status, order_items(is_custom)').order('created_at', { ascending: false }).limit(6),
         supabase.from('orders').select('total').gte('paid_at', monthStart.toISOString()).neq('status', 'cancelled'),
         supabase.from('products').select('id, name, variant, stock, image_url').eq('is_custom', false).eq('is_active', true).lt('stock', 6).order('stock').limit(8),
-        supabase.from('products').select('id', { count: 'exact', head: true }).not('special_price', 'is', null)
+        supabase.from('products').select('id', { count: 'exact', head: true }).not('special_price', 'is', null),
+        supabase.from('wholesale_clients').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('branding_requests').select('id', { count: 'exact', head: true }).eq('status', 'new')
       ])
       const o = open.data || []
       const queue = {}
-      o.filter(x => x.status === 'paid').forEach(x => x.order_items.forEach(it => { const k = it.name + (it.is_custom ? ' (custom)' : ''); queue[k] = (queue[k] || 0) + it.qty }))
+      o.filter(x => x.status === 'paid').forEach(x => x.order_items.forEach(it => { const k = it.name + (it.is_custom ? ' (custom)' : ''); const n = it.qty - (it.from_stock_qty || 0); if (n > 0) queue[k] = (queue[k] || 0) + n }))
       setD({
         awaiting: o.filter(x => x.status === 'awaiting_payment').length,
         toPrint: o.filter(x => x.status === 'paid').length,
         proofs: o.filter(x => x.order_items.some(i => i.is_custom) && !x.proof_approved_at).length,
         sales: (month.data || []).reduce((s, x) => s + Number(x.total), 0),
-        queue, latest: latest.data || [], low: low.data || [], specials: special.count || 0
+        queue, latest: latest.data || [], low: low.data || [], specials: special.count || 0, apps: apps.count || 0, brand: brand.count || 0
       })
     })()
   }, [])
@@ -51,6 +53,7 @@ export function Dashboard() {
         <div className="stack" style={{ gap: 20 }}>
           <div className="card panel"><h2 style={{ fontSize: 26 }}>Low stock</h2>
             {d.low.length ? d.low.map(p => <Link key={p.id} to={'/admin/products/' + p.id} className="row" style={{ flexWrap: 'nowrap', textDecoration: 'none', color: 'inherit' }}><div className="thumb" style={{ width: 44, height: 44 }}>{p.image_url && <img src={p.image_url} alt="" />}</div><b style={{ flex: 1, fontSize: 14 }}>{fullName(p)}</b><b style={{ color: 'var(--sale)', fontSize: 13 }}>{p.stock} left</b></Link>) : <p className="muted">Everything is well stocked.</p>}</div>
+          {(d.apps > 0 || d.brand > 0) && <div className="card panel" style={{ gap: 8 }}><h2 style={{ fontSize: 26 }}>Wholesale</h2>{d.apps > 0 && <Link to="/admin/wholesale">{d.apps} new application{d.apps === 1 ? '' : 's'} to approve</Link>}{d.brand > 0 && <Link to="/admin/wholesale?tab=branding">{d.brand} branding request{d.brand === 1 ? '' : 's'} to quote</Link>}</div>}
           <div className="ai" style={{ gap: 8 }}><span className="eyebrow" style={{ color: 'var(--surface)' }}>Running now</span><h2 style={{ fontSize: 26 }}>{d.specials} designs on special</h2><Link className="linkbtn" style={{ color: '#fff', alignSelf: 'flex-start' }} to="/admin/promos">Manage specials and sets</Link></div>
         </div>
       </div>

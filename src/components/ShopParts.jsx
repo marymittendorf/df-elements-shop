@@ -6,7 +6,7 @@ import { R, hasPrice, specialOn, nowPrice, fullName, typeName } from '../lib/for
 
 const NAV = [
   ['/shop', 'Shop all'], ['/shop?type=coaster', 'Coasters'], ['/shop?type=stand', 'Phone stands'],
-  ['/custom', 'Make it yours'], ['/specials', 'Specials'], ['/gift-sets', 'Gift sets']
+  ['/custom', 'Make it yours'], ['/specials', 'Specials'], ['/gift-sets', 'Gift sets'], ['/wholesale', 'Wholesale']
 ]
 
 export function Header() {
@@ -44,7 +44,7 @@ export function Footer() {
         <div><div className="logo" style={{ color: '#fff', cursor: 'default' }}><Logo dark /></div><p style={{ marginTop: 14, maxWidth: 300, fontSize: 14 }}>Coasters, phone stands and decor boards, designed in house and UV printed on MDF in South Africa.</p></div>
         <div><h4>Shop</h4><Link to="/shop?type=coaster">Coasters</Link><Link to="/shop?type=stand">Phone stands</Link><Link to="/shop?type=board">A4 decor boards</Link><Link to="/custom">Make it yours</Link><Link to="/gift-sets">Gift sets</Link></div>
         <div><h4>Themes</h4>{themes.map(t => <Link key={t.id} to={'/shop?theme=' + t.id}>{t.name}</Link>)}</div>
-        <div><h4>Help</h4><Link to="/account">My account</Link><Link to="/story">Delivery and returns</Link><Link to="/story">Terms and conditions</Link><Link to="/story">Privacy policy (POPIA)</Link></div>
+        <div><h4>Help</h4><Link to="/account">My account</Link><Link to="/wholesale">Wholesale login</Link><Link to="/story">Delivery and returns</Link><Link to="/story">Terms and conditions</Link><Link to="/story">Privacy policy (POPIA)</Link></div>
       </div>
       <div className="base"><span>© {new Date().getFullYear()} DF Elements. All rights reserved.</span><span>Pay safely by EFT</span></div>
     </div></footer>

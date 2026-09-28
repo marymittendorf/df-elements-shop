@@ -8,8 +8,12 @@ const inputS = { minHeight: 46, padding: '0 16px', borderRadius: 50, border: '1p
 const FILTERS = {
   All: () => true, Coasters: p => p.type === 'coaster', 'Phone stands': p => p.type === 'stand', 'Decor boards': p => p.type === 'board',
   'On special': p => specialOn(p), New: p => p.is_new, 'Low stock': p => !p.is_custom && p.stock < 6, Hidden: p => !p.is_active,
-  'Price needed': p => p.price == null, 'Name check': p => p.needs_review
+  'Price needed': p => p.price == null, 'Trade price needed': p => !p.is_custom && p.wholesale_price == null, 'Name check': p => p.needs_review
 }
+// Trade prices live in their own table: an empty price removes it
+export const saveWholesale = (id, price) => (price == null || price <= 0
+  ? supabase.from('wholesale_prices').delete().eq('product_id', id)
+  : supabase.from('wholesale_prices').upsert({ product_id: id, price }, { onConflict: 'product_id' }))
 const num = v => (String(v).trim() === '' ? null : Math.max(0, Number(String(v).replace(',', '.'))))
 
 export function Products() {
@@ -19,15 +23,16 @@ export function Products() {
   const [themes, setThemes] = useState([])
   const [tab, setTab] = useState('All'); const [q, setQ] = useState(''); const [theme, setTheme] = useState('')
   const load = useCallback(async () => {
-    const [{ data }, { data: th }] = await Promise.all([supabase.from('products').select('*').order('sort_order').order('id'), supabase.from('themes').select('*').order('sort_order')])
-    setRows(data || []); setThemes(th || [])
+    const [{ data }, { data: th }, { data: wp }] = await Promise.all([supabase.from('products').select('*').order('sort_order').order('id'), supabase.from('themes').select('*').order('sort_order'), supabase.from('wholesale_prices').select('*')])
+    const m = {}; (wp || []).forEach(x => { m[x.product_id] = Number(x.price) })
+    setRows((data || []).map(p => ({ ...p, wholesale_price: m[p.id] ?? null }))); setThemes(th || [])
   }, [])
   useEffect(() => { load() }, [load])
 
   const save = async (p, patch) => {
     const next = { ...p, ...patch }
     if (next.special_price != null && (next.price == null || Number(next.special_price) >= Number(next.price))) { toast('A special price must be lower than the normal price'); load(); return }
-    const { error } = await supabase.from('products').update(patch).eq('id', p.id)
+    const { error } = 'wholesale_price' in patch ? await saveWholesale(p.id, patch.wholesale_price) : await supabase.from('products').update(patch).eq('id', p.id)
     if (error) { toast(error.message); load(); return }
     setRows(rs => rs.map(r => (r.id === p.id ? next : r))); toast('Saved: ' + fullName(p))
   }
@@ -74,7 +79,7 @@ export function ProductEdit() {
   const [p, setP] = useState(null); const [themes, setThemes] = useState([]); const [busy, setBusy] = useState(false)
   useEffect(() => {
     supabase.from('themes').select('*').order('sort_order').then(({ data }) => setThemes(data || []))
-    if (isNew) setP({ ...BLANK }); else supabase.from('products').select('*').eq('id', id).maybeSingle().then(({ data }) => setP(data || false))
+    if (isNew) setP({ ...BLANK }); else Promise.all([supabase.from('products').select('*').eq('id', id).maybeSingle(), supabase.from('wholesale_prices').select('price').eq('product_id', id).maybeSingle()]).then(([{ data }, { data: wp }]) => setP(data ? { ...data, wholesale_price: wp ? Number(wp.price) : null } : false))
   }, [id, isNew])
   if (p === null) return <p className="muted">Loading…</p>
   if (p === false) return <p className="muted">Product not found. <Link to="/admin/products">Back to products</Link></p>
@@ -99,11 +104,14 @@ export function ProductEdit() {
     row.special_ends = row.special_ends || null
     if (row.special_price != null && (row.price == null || row.special_price >= row.price)) { toast('A special price must be lower than the normal price'); return }
     if (!row.sku) delete row.sku
-    delete row.id; delete row.created_at
+    const trade = row.is_custom ? null : row.wholesale_price
+    delete row.id; delete row.created_at; delete row.wholesale_price
     setBusy(true)
     const res = isNew ? await supabase.from('products').insert(row).select().single() : await supabase.from('products').update(row).eq('id', id).select().single()
     setBusy(false)
     if (res.error) { toast(res.error.message); return }
+    const wr = await saveWholesale(res.data.id, trade)
+    if (wr.error) { toast('Saved, but the trade price did not save: ' + wr.error.message); return }
     if (isNew && !res.data.sku) {
       const sku = ({ coaster: 'CST', stand: 'STD', board: 'BRD' }[res.data.type]) + String(res.data.id).padStart(3, '0')
       await supabase.from('products').update({ sku }).eq('id', res.data.id)

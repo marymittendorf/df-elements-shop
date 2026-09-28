@@ -50,6 +50,22 @@ This makes the "confirm your email" and "reset your password" links for customer
 4. Go to **Products** and type in your real prices, wholesale prices and stock. Open any design to add its size.
 5. Place a test order in the shop, then find it in **Orders** and walk it through: EFT received, printed and packed, shipped. Cancel it at the end so the stock goes back.
 
+## Phase 2: wholesale
+
+1. Upload the new files to GitHub: drag the `src` folder, the `supabase` folder and `SETUP.md` onto the repository's upload page, choose **Commit directly to the main branch** and commit. Vercel updates the shop by itself.
+2. In Supabase, open **SQL Editor**, paste in `supabase/05_wholesale.sql` and press **Run**. It moves your trade prices into their own protected table and adds wholesale clients, wholesale orders and branding requests.
+3. In the admin, go to **Settings** and check **Wholesale: free courier on orders from (R)**. It starts at R1 500.
+
+### How wholesale works
+
+1. A business applies on the **Wholesale** page and chooses a password. They can sign in, but see no trade prices until you approve them.
+2. In admin, open **Wholesale**, then **Applications**, and press **Approve**. Let them know by WhatsApp or email that they can sign in.
+3. They order at trade prices and get a pro forma invoice straight away. Orders of R1 500 or more have free courier.
+4. The order shows in **Orders** with a **Wholesale** label and a WS number. For each design, set how many come **from stock**. The rest is printed.
+5. When the EFT reflects, press **EFT received**. When you mark it **printed and packed**, the from stock pieces come off your stock count.
+6. Branding requests (client logos) are under **Wholesale**, then **Branding requests**. Add your quote as a note, which the client can see, and mark it **Quote sent**.
+7. Trade prices are in the **Wholesale (R)** column in **Products**. A design with no trade price shows as "On request" to clients.
+
 ## When the domain has moved to xneelo
 
 1. In Vercel, open the project, then **Settings**, then **Domains**, and add your domain.

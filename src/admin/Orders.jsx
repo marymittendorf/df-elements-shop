@@ -28,7 +28,7 @@ export function Orders() {
   const [q, setQ] = useState('')
 
   const load = useCallback(async () => {
-    let query = supabase.from('orders').select('*, order_items(qty, is_custom)').order('created_at', { ascending: false }).limit(300)
+    let query = supabase.from('orders').select('*, order_items(qty, is_custom), wholesale_clients(business_name)').order('created_at', { ascending: false }).limit(300)
     if (tab !== 'all') query = query.eq('status', tab)
     const { data } = await query
     setRows(data || [])
@@ -60,7 +60,7 @@ export function Orders() {
           <tr key={o.id} className="click" onClick={() => nav('/admin/orders/' + o.order_no)}>
             <td><button className="tick" aria-pressed={!!sel[o.id]} aria-label={'Select ' + o.order_no} onClick={e => { e.stopPropagation(); setSel({ ...sel, [o.id]: !sel[o.id] }) }}>{sel[o.id] ? '✓' : ''}</button></td>
             <td><b>{o.order_no}</b>{o.order_items.some(i => i.is_custom) && <> <span className="pill" style={{ background: 'var(--info-bg)', color: 'var(--info-fg)' }}>Custom</span></>}</td>
-            <td className="muted" style={{ fontSize: 14 }}>{fmtDateTime(o.created_at)}</td><td>{o.first_name} {o.last_name}</td>
+            <td className="muted" style={{ fontSize: 14 }}>{fmtDateTime(o.created_at)}</td><td>{o.channel === 'wholesale' ? <><b>{o.wholesale_clients ? o.wholesale_clients.business_name : o.first_name}</b> <span className="pill" style={{ background: 'var(--olive)', color: '#fff' }}>Wholesale</span></> : o.first_name + ' ' + o.last_name}</td>
             <td className="num">{o.order_items.reduce((a, i) => a + i.qty, 0)}</td><td className="num"><b>{R(o.total)}</b></td><td style={{ fontSize: 14 }}>{o.delivery_name}</td><td><Pill s={o.status} /></td>
           </tr>)) : <tr><td colSpan={8} className="muted" style={{ padding: 28 }}>No orders here.</td></tr>}</tbody></table></div></div>
     </>
@@ -75,7 +75,7 @@ export function OrderDetail() {
   const [imgs, setImgs] = useState({})
   const [track, setTrack] = useState('')
   const load = useCallback(async () => {
-    const { data } = await supabase.from('orders').select('*, order_items(*)').eq('order_no', no).maybeSingle()
+    const { data } = await supabase.from('orders').select('*, order_items(*), wholesale_clients(business_name, contact_name, vat_number)').eq('order_no', no).maybeSingle()
     setO(data || false); if (data) setTrack(data.tracking_number || '')
     const pids = (data ? data.order_items : []).map(i => i.product_id).filter(Boolean)
     if (pids.length) { const { data: ps } = await supabase.from('products').select('id, image_url').in('id', pids); const m = {}; (ps || []).forEach(p => { m[p.id] = p.image_url }); setImgs(m) }
@@ -98,8 +98,17 @@ export function OrderDetail() {
   }
   const proof = async () => { await supabase.from('orders').update({ proof_approved_at: new Date().toISOString() }).eq('id', o.id); load(); toast('Proof approved, ready to print') }
   const saveTrack = async () => { await supabase.from('orders').update({ tracking_number: track.trim() || null }).eq('id', o.id); load(); toast('Tracking number saved') }
+  const ws = o.channel === 'wholesale'
+  const canSplit = ws && (o.status === 'awaiting_payment' || o.status === 'paid')
+  const setSplit = async (l, v) => {
+    const n = Math.max(0, Math.min(l.qty, Math.round(Number(v) || 0)))
+    if (n === l.from_stock_qty) return
+    const { error } = await supabase.from('order_items').update({ from_stock_qty: n }).eq('id', l.id)
+    if (error) { toast(error.message); return }
+    load(); toast(l.name + ': ' + n + ' from stock, ' + (l.qty - n) + ' to print')
+  }
   const cancel = async () => {
-    if (!window.confirm('Cancel order ' + o.order_no + '? The stock goes back on the shelf. This cannot be undone.')) return
+    if (!window.confirm('Cancel order ' + o.order_no + '?' + (ws ? (i >= 2 ? ' The from stock pieces go back on the shelf.' : '') : ' The stock goes back on the shelf.') + ' This cannot be undone.')) return
     const { error } = await supabase.rpc('cancel_order', { p_order_id: o.id })
     if (error) { toast(error.message); return }
     load(); refreshCounts(); toast(o.order_no + ' cancelled')
@@ -109,19 +118,21 @@ export function OrderDetail() {
   return (
     <>
       <div className="ahead">
-        <div className="stack" style={{ gap: 6 }}><Link className="linkbtn" style={{ alignSelf: 'flex-start' }} to="/admin/orders">Back to orders</Link><div className="row"><h1>Order {o.order_no}</h1><Pill s={o.status} /></div><span className="muted" style={{ fontSize: 14 }}>{fmtDateTime(o.created_at)} · EFT</span></div>
+        <div className="stack" style={{ gap: 6 }}><Link className="linkbtn" style={{ alignSelf: 'flex-start' }} to="/admin/orders">Back to orders</Link><div className="row"><h1>Order {o.order_no}</h1><Pill s={o.status} />{ws && <span className="pill" style={{ background: 'var(--olive)', color: '#fff' }}>Wholesale</span>}</div><span className="muted" style={{ fontSize: 14 }}>{fmtDateTime(o.created_at)} · EFT</span></div>
         <div className="row">{o.status !== 'cancelled' && o.status !== 'delivered' && <button className="btn" onClick={go}>{NEXT_LABEL[o.status]}</button>}</div>
       </div>
       {o.status === 'awaiting_payment' && <div className="note" style={{ background: 'var(--warn-bg)', color: 'var(--warn-fg)' }}>Check your bank for an EFT with reference <b>&nbsp;{o.order_no}&nbsp;</b> for {R(o.total)} before you print.</div>}
       {custom && !o.proof_approved_at && o.status !== 'cancelled' && <div className="note" style={{ background: 'var(--info-bg)', color: 'var(--info-fg)', justifyContent: 'space-between', flexWrap: 'wrap' }}><span style={{ display: 'flex', gap: 12, alignItems: 'center' }}><Icon.brush /><span><b>Custom item.</b> Design it and send the proof to {o.phone} or {o.email} before printing.</span></span><button className="btn sm" onClick={proof}>Proof approved</button></div>}
       {o.notes && <div className="note"><b>Customer note:</b>&nbsp;{o.notes}</div>}
       <div className="doclinks">{[['invoice', o.status === 'awaiting_payment' ? 'Pro forma invoice' : 'Tax invoice', 'Print or save as PDF', <Icon.doc />], ['packing', 'Print and packing list', 'Tick off as you print and pack', <Icon.list />], ['label', 'Courier label', 'Stick on the parcel', <Icon.truck />]].map(d => <button key={d[0]} className="card doclink" onClick={() => setDoc({ type: d[0], ids: [o.id] })}><span className="circle" style={{ width: 44, height: 44 }}>{d[3]}</span><span style={{ display: 'flex', flexDirection: 'column' }}><b>{d[1]}</b><span className="muted" style={{ fontSize: 13 }}>{d[2]}</span></span></button>)}</div>
+      {ws && canSplit && <div className="note"><span><b>Stock or print:</b> set how many of each design come from stock. The rest gets printed. The from stock pieces come off your stock count when you mark the order printed and packed.</span></div>}
       <div className="two">
         <div className="card panel"><h2>Items</h2>
           {o.order_items.map(l => (
             <div className="line" key={l.id}>
               <div className="thumb" style={{ width: 52, height: 52 }}>{l.custom_photo_path && urls[l.custom_photo_path] ? <a href={urls[l.custom_photo_path]} target="_blank" rel="noreferrer"><img src={urls[l.custom_photo_path]} alt="Customer photo" /></a> : imgs[l.product_id] ? <img src={imgs[l.product_id]} alt="" /> : null}</div>
               <div className="info"><b>{l.name}</b><span className="muted" style={{ fontSize: 13 }}>{l.sku}{l.custom_note ? ' · ' + l.custom_note : ''}</span>
+                {ws && <div className="row" style={{ gap: 8, marginTop: 6, fontSize: 13, flexWrap: 'nowrap' }}><span className="muted">From stock</span>{canSplit ? <input key={l.id + '-' + l.from_stock_qty} className="cellin" style={{ width: 64, minHeight: 34, textAlign: 'center' }} type="number" min="0" max={l.qty} aria-label={'From stock for ' + l.name} defaultValue={l.from_stock_qty} onBlur={e => setSplit(l, e.target.value)} onKeyDown={e => e.key === 'Enter' && e.target.blur()} /> : <b className="num">{l.from_stock_qty}</b>}<span className="muted">·</span><span className="muted">To print</span><b className="num">{l.qty - l.from_stock_qty}</b></div>}
                 {l.is_custom && <div><span className="pill" style={{ background: 'var(--info-bg)', color: 'var(--info-fg)', marginTop: 4 }}>{l.custom_photo_path ? 'Customer photo attached, tap to open' : 'Photo to follow'}</span></div>}</div>
               <span className="num">x {l.qty}</span><b className="num" style={{ minWidth: 100, textAlign: 'right' }}>{R(l.unit_price * l.qty)}</b>
             </div>))}
@@ -131,8 +142,8 @@ export function OrderDetail() {
           </div>
         </div>
         <div className="stack" style={{ gap: 20 }}>
-          <div className="card panel" style={{ gap: 6 }}><h2 style={{ fontSize: 24 }}>Customer</h2><b>{o.first_name} {o.last_name}</b><a href={'mailto:' + o.email}>{o.email}</a><a href={'tel:' + o.phone}>{o.phone}</a><span className="muted">{[o.street, o.suburb, o.city, o.postal_code].filter(Boolean).join(', ')}</span>
-            <span className="pill" style={{ background: o.customer_id ? 'var(--surface)' : 'var(--grey-bg)', color: o.customer_id ? 'var(--primary-dk)' : 'var(--muted2)', alignSelf: 'flex-start', marginTop: 6 }}>{o.customer_id ? 'Account holder' : 'Guest checkout'}</span></div>
+          <div className="card panel" style={{ gap: 6 }}><h2 style={{ fontSize: 24 }}>{ws ? 'Wholesale client' : 'Customer'}</h2>{ws && o.wholesale_clients && <b style={{ fontSize: 17 }}>{o.wholesale_clients.business_name}</b>}<b>{o.first_name} {o.last_name}</b>{ws && o.wholesale_clients && o.wholesale_clients.vat_number ? <span className="muted">VAT {o.wholesale_clients.vat_number}</span> : null}<a href={'mailto:' + o.email}>{o.email}</a><a href={'tel:' + o.phone}>{o.phone}</a><span className="muted">{[o.street, o.suburb, o.city, o.postal_code].filter(Boolean).join(', ')}</span>
+            {!ws && <span className="pill" style={{ background: o.customer_id ? 'var(--surface)' : 'var(--grey-bg)', color: o.customer_id ? 'var(--primary-dk)' : 'var(--muted2)', alignSelf: 'flex-start', marginTop: 6 }}>{o.customer_id ? 'Account holder' : 'Guest checkout'}</span>}</div>
           <div className="card panel"><h2 style={{ fontSize: 24 }}>Courier</h2>
             <label className="field" htmlFor="od-track">Tracking or waybill number<input id="od-track" value={track} onChange={e => setTrack(e.target.value)} placeholder="Add when you book the courier" /></label>
             <button className="btn ghost sm" style={{ alignSelf: 'flex-start' }} onClick={saveTrack}>Save tracking number</button></div>

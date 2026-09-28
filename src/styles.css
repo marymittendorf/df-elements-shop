@@ -387,3 +387,10 @@ html[data-look="craft"] .nav a{text-transform:uppercase;font-size:14px;letter-sp
 .side a { position: relative; }
 .linkbtn[disabled] { opacity: .5; cursor: not-allowed; }
 .err { background: #F8D7CF; color: #6B2413; }
+
+/* wholesale portal */
+.wsgrid{grid-template-columns:minmax(0,1fr) 340px}
+@media (max-width:980px){.wsgrid{grid-template-columns:minmax(0,1fr)}}
+.chips{min-width:0}
+table.t.wstable{min-width:600px}
+@media (max-width:640px){table.t.wstable{min-width:0;width:100%}.wstable .hide-sm,.wstable thead{display:none}.wstable,.wstable tbody{display:block}.wstable tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;padding:12px 0;border-bottom:1px solid var(--line)}.wstable td{padding:0;border:0}.wstable .c-qty{grid-column:1/-1}}

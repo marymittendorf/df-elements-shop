@@ -5,6 +5,8 @@ import { R, fmtDate, fmtDateTime } from '../lib/format'
 // doc = { type: 'invoice'|'packing'|'label', ids: [order ids] }
 const LOGO = <span style={{ display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--display)', fontWeight: 700, fontSize: 30 }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: '50%', background: '#221E1B', color: '#fff', fontSize: 18, marginRight: 10 }}>DF</span>Elements</span>
 const addr = o => [o.street, o.suburb, o.city, o.postal_code].filter(Boolean).join(', ')
+const who = o => [o.first_name, o.last_name].filter(Boolean).join(' ')
+const biz = o => (o.wholesale_clients && o.wholesale_clients.business_name) || ''
 const box = <span style={{ display: 'inline-block', width: 20, height: 20, border: '2px solid #3B2A20', borderRadius: 4 }} />
 
 function Invoice({ o, s }) {
@@ -17,7 +19,7 @@ function Invoice({ o, s }) {
           <span className="pill" style={{ background: paid ? 'var(--surface)' : 'var(--warn-bg)', color: paid ? 'var(--primary-dk)' : 'var(--warn-fg)', marginTop: 6 }}>{paid ? 'PAID · EFT' + (o.paid_at ? ' · ' + fmtDate(o.paid_at) : '') : 'AWAITING PAYMENT'}</span></div>
       </div>
       <div className="grid2" style={{ margin: '28px 0', padding: '18px 22px', borderRadius: 14, background: 'var(--soft)' }}>
-        <div><div className="eyebrow">Bill to</div><b>{o.first_name} {o.last_name}</b><div>{o.email}</div><div>{o.phone}</div></div>
+        <div><div className="eyebrow">Bill to</div>{biz(o) && <b style={{ display: 'block' }}>{biz(o)}</b>}<b>{who(o)}</b>{o.wholesale_clients && o.wholesale_clients.vat_number ? <div>VAT {o.wholesale_clients.vat_number}</div> : null}<div>{o.email}</div><div>{o.phone}</div></div>
         <div><div className="eyebrow">Deliver to</div><div>{addr(o)}</div><div>{o.delivery_name}</div></div>
       </div>
       <table><thead><tr><th>Item</th><th>Qty</th><th style={{ textAlign: 'right' }}>Unit</th><th style={{ textAlign: 'right' }}>Amount</th></tr></thead>
@@ -38,12 +40,12 @@ function Packing({ o, urls }) {
   return (
     <div className="paper">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '2px solid #3B2A20', paddingBottom: 14 }}><div><div className="eyebrow">Print and packing list</div><h2>Order {o.order_no}</h2></div><div style={{ textAlign: 'right' }}><b>{o.delivery_name}</b><br />{fmtDateTime(o.created_at)}</div></div>
-      <div style={{ margin: '18px 0' }}><div className="eyebrow">Ship to</div><b style={{ fontSize: 16 }}>{o.first_name} {o.last_name}</b><div>{addr(o)}</div><div>{o.phone}</div></div>
+      <div style={{ margin: '18px 0' }}><div className="eyebrow">Ship to</div>{biz(o) && <b style={{ fontSize: 16, display: 'block' }}>{biz(o)}</b>}<b style={{ fontSize: 16 }}>{who(o)}</b><div>{addr(o)}</div><div>{o.phone}</div></div>
       {o.notes && <div className="note" style={{ marginBottom: 14 }}><b>Customer note:</b> {o.notes}</div>}
-      <table><thead><tr><th>Printed</th><th>Packed</th><th>Item</th><th>SKU</th><th>Qty</th></tr></thead>
+      <table><thead><tr><th>Printed</th><th>Packed</th><th>Item</th><th>SKU</th>{o.channel === 'wholesale' && <><th>From stock</th><th>To print</th></>}<th>Qty</th></tr></thead>
         <tbody>{o.order_items.map(l => <tr key={l.id}><td>{box}</td><td>{box}</td>
           <td><div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>{l.custom_photo_path && urls[l.custom_photo_path] && <img src={urls[l.custom_photo_path]} alt="" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8 }} />}<span><b>{l.name}</b>{l.is_custom && <div className="muted">Custom{l.custom_note ? ': ' + l.custom_note : ''}{l.custom_photo_path ? '' : ' · photo to follow'}</div>}</span></div></td>
-          <td className="muted">{l.sku}</td><td style={{ fontSize: 20, fontWeight: 700 }}>{l.qty}</td></tr>)}</tbody></table>
+          <td className="muted">{l.sku}</td>{o.channel === 'wholesale' && <><td style={{ fontSize: 16 }}>{l.from_stock_qty}</td><td style={{ fontSize: 16, fontWeight: 700 }}>{l.qty - l.from_stock_qty}</td></>}<td style={{ fontSize: 20, fontWeight: 700 }}>{l.qty}</td></tr>)}</tbody></table>
       <div className="grid2" style={{ marginTop: 24 }}><div className="stack" style={{ gap: 6 }}><div className="eyebrow">Also pack</div><span>☐ Thank you card and invoice</span><span>☐ Wrap each piece to protect the print</span></div><div className="stack" style={{ gap: 6 }}><div className="eyebrow">Parcel</div><span>Weight: ______ kg</span><span>Packed by: __________</span></div></div>
     </div>
   )
@@ -54,7 +56,7 @@ function Label({ o, s }) {
     <div className="label">
       <div className="row" style={{ justifyContent: 'space-between', borderBottom: '3px solid #000', paddingBottom: 8 }}><b style={{ fontSize: 18 }}>{o.delivery_name.toUpperCase()}</b></div>
       <div style={{ padding: '8px 0', borderBottom: '1px solid #000', fontSize: 11 }}><b>FROM</b><br />DF Elements{s.address ? ' · ' + s.address : ''}{s.phone ? ' · ' + s.phone : ''}</div>
-      <div style={{ padding: '10px 0', borderBottom: '3px solid #000' }}><div style={{ fontSize: 11, fontWeight: 700 }}>DELIVER TO</div><div style={{ fontSize: 20, fontWeight: 900 }}>{(o.first_name + ' ' + o.last_name).toUpperCase()}</div><div style={{ fontSize: 15 }}>{addr(o)}</div><div>Tel {o.phone}</div></div>
+      <div style={{ padding: '10px 0', borderBottom: '3px solid #000' }}><div style={{ fontSize: 11, fontWeight: 700 }}>DELIVER TO</div><div style={{ fontSize: 20, fontWeight: 900 }}>{(biz(o) ? biz(o) + ' · ' + who(o) : who(o)).toUpperCase()}</div><div style={{ fontSize: 15 }}>{addr(o)}</div><div>Tel {o.phone}</div></div>
       <div style={{ padding: '8px 0', fontSize: 14 }}><b>Ref:</b> {o.order_no} · <b>Parcels:</b> 1 of 1 · <b>FRAGILE PRINT</b></div>
       {o.tracking_number && <div style={{ fontSize: 14 }}><b>Waybill:</b> {o.tracking_number}</div>}
     </div>
@@ -68,7 +70,7 @@ export function DocsModal({ doc, onClose }) {
   useEffect(() => {
     (async () => {
       const [{ data: os }, { data: st }] = await Promise.all([
-        supabase.from('orders').select('*, order_items(*)').in('id', doc.ids).order('created_at'),
+        supabase.from('orders').select('*, order_items(*), wholesale_clients(business_name, vat_number)').in('id', doc.ids).order('created_at'),
         supabase.from('settings').select('*').eq('id', 1).single()
       ])
       setOrders(os || []); setS(st || {})

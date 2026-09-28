@@ -25,6 +25,7 @@ export function Settings() {
       <div className="two" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)' }}>
         <div className="card panel"><h2 style={{ fontSize: 26 }}>Bank details for EFT</h2>{F('bank_name', 'Bank')}{F('account_name', 'Account name')}<div className="grid2">{F('account_number', 'Account number')}{F('branch_code', 'Branch code')}</div></div>
         <div className="card panel"><h2 style={{ fontSize: 26 }}>Business details</h2>{F('business_name', 'Business name')}{F('address', 'Business address')}<div className="grid2">{F('email', 'Email')}{F('phone', 'Phone')}</div>{F('vat_number', 'VAT number (if registered)')}
+          {F('wholesale_free_delivery_from', 'Wholesale: free courier on orders from (R)', { type: 'number', min: 0 })}
           <label className="field" htmlFor="st-se">Specials end date<input id="st-se" type="date" value={endDate} onChange={e => setS({ ...s, specials_end: e.target.value ? new Date(e.target.value + 'T23:59:59+02:00').toISOString() : null })} /></label></div>
       </div>
       <div className="card panel"><div className="ahead"><h2 style={{ fontSize: 26 }}>Delivery options</h2><button className="btn ghost sm" onClick={addDel}>Add an option</button></div>
