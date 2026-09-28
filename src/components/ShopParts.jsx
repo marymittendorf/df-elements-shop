@@ -46,7 +46,7 @@ export function Footer() {
         <div><h4>Themes</h4>{themes.map(t => <Link key={t.id} to={'/shop?theme=' + t.id}>{t.name}</Link>)}</div>
         <div><h4>Help</h4><Link to="/account">My account</Link><Link to="/wholesale">Wholesale login</Link><Link to="/story">Delivery and returns</Link><Link to="/story">Terms and conditions</Link><Link to="/story">Privacy policy (POPIA)</Link></div>
       </div>
-      <div className="base"><span>© {new Date().getFullYear()} DF Elements. All rights reserved.</span><span>Pay safely by EFT</span></div>
+      <div className="base"><span>© {new Date().getFullYear()} DF Elements. All rights reserved.</span><span>Pay safely by EFT · <Link to="/admin" style={{ color: 'inherit' }}>Staff login</Link></span></div>
     </div></footer>
   )
 }
