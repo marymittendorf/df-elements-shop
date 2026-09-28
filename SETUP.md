@@ -87,6 +87,14 @@ This makes the "confirm your email" and "reset your password" links for customer
 4. Product types (Coasters, Phone stands, Decor boards, Home and kitchen, Gifts and keepsakes) can be renamed, hidden or added under **Settings**, then **Product types**.
 5. New products show "Photo coming soon" until you upload a photo in **Products**. Anything marked **Check the name** is worth a quick look.
 
+## Costing
+
+1. Upload the **src** folder and this file to GitHub, and commit to main.
+2. In the Supabase **SQL Editor**, run **supabase/08_costing.sql** (after 07).
+3. In admin, open **Costing**. Check your running costs at the top. Figures marked estimate (power from the wall, electricity rate, tube life, small parcel price, ink per m²) are guesses until you replace them.
+4. Link the remaining products to a costing card at the bottom of the page, or add a new card for them.
+5. Press **Copy costs to products** so the profit report uses these costs. Press it again whenever you change a figure.
+
 ## When the domain has moved to xneelo
 
 1. In Vercel, open the project, then **Settings**, then **Domains**, and add your domain.

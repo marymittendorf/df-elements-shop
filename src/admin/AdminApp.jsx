@@ -12,6 +12,7 @@ import { DocsModal } from './Docs'
 import { Reports } from './Reports'
 import { Expenses } from './Expenses'
 import { Faqs } from './Faqs'
+import { Costing } from './Costing'
 
 const ACtx = createContext(null)
 export const useAdmin = () => useContext(ACtx)
@@ -41,7 +42,7 @@ function Login({ onDone }) {
   )
 }
 
-const NAV = [['/admin', 'Dashboard', true], ['/admin/orders', 'Orders'], ['/admin/products', 'Products'], ['/admin/wholesale', 'Wholesale'], ['/admin/promos', 'Specials and sets'], ['/admin/reports', 'Reports'], ['/admin/expenses', 'Expenses'], ['/admin/faqs', 'Q and A'], ['/admin/settings', 'Settings']]
+const NAV = [['/admin', 'Dashboard', true], ['/admin/orders', 'Orders'], ['/admin/products', 'Products'], ['/admin/wholesale', 'Wholesale'], ['/admin/promos', 'Specials and sets'], ['/admin/reports', 'Reports'], ['/admin/expenses', 'Expenses'], ['/admin/costing', 'Costing'], ['/admin/faqs', 'Q and A'], ['/admin/settings', 'Settings']]
 
 export default function AdminApp() {
   const [state, setState] = useState('checking') // checking | login | ok
@@ -101,6 +102,7 @@ export default function AdminApp() {
             <Route path="reports" element={<Reports />} />
             <Route path="expenses" element={<Expenses />} />
             <Route path="faqs" element={<Faqs />} />
+            <Route path="costing" element={<Costing />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Routes>

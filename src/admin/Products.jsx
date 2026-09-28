@@ -70,16 +70,17 @@ export function Products() {
   )
 }
 
-const BLANK = { sku: '', name: '', variant: '', type: 'coaster', theme_id: null, short_description: '', care: 'Place on any flat surface. Wipe clean with a damp cloth and let it dry. Keep out of standing water and the dishwasher.', material: 'MDF, UV printed on the top face.', size: '', price: null, special_price: null, special_ends: null, wholesale_price: null, cost_price: null, stock: 0, made_to_order: false, is_new: true, is_custom: false, is_active: true, needs_review: false, image_url: '', sort_order: 999 }
+const BLANK = { sku: '', name: '', variant: '', type: 'coaster', theme_id: null, short_description: '', care: 'Place on any flat surface. Wipe clean with a damp cloth and let it dry. Keep out of standing water and the dishwasher.', material: 'MDF, UV printed on the top face.', size: '', price: null, special_price: null, special_ends: null, wholesale_price: null, cost_price: null, stock: 0, made_to_order: false, cost_item_id: null, is_new: true, is_custom: false, is_active: true, needs_review: false, image_url: '', sort_order: 999 }
 
 export function ProductEdit() {
   const { id } = useParams()
   const isNew = id === 'new'
   const { toast } = useAdmin()
   const nav = useNavigate()
-  const [p, setP] = useState(null); const [themes, setThemes] = useState([]); const [busy, setBusy] = useState(false)
+  const [p, setP] = useState(null); const [themes, setThemes] = useState([]); const [cards, setCards] = useState([]); const [busy, setBusy] = useState(false)
   useEffect(() => {
     supabase.from('themes').select('*').order('sort_order').then(({ data }) => setThemes(data || []))
+    supabase.from('cost_items').select('id, name').order('sort_order').then(({ data }) => setCards(data || []))
     if (isNew) setP({ ...BLANK }); else Promise.all([supabase.from('products').select('*').eq('id', id).maybeSingle(), supabase.from('wholesale_prices').select('price').eq('product_id', id).maybeSingle()]).then(([{ data }, { data: wp }]) => setP(data ? { ...data, wholesale_price: wp ? Number(wp.price) : null } : false))
   }, [id, isNew])
   if (p === null) return <p className="muted">Loading…</p>
@@ -101,7 +102,7 @@ export function ProductEdit() {
     if (!p.name.trim()) { toast('Give the design a name'); return }
     const row = { ...p }
     ;['price', 'special_price', 'wholesale_price', 'cost_price'].forEach(k => { row[k] = row[k] === '' || row[k] == null ? null : Number(row[k]) })
-    row.stock = Math.round(Number(row.stock) || 0); row.theme_id = row.theme_id ? Number(row.theme_id) : null
+    row.stock = Math.round(Number(row.stock) || 0); row.theme_id = row.theme_id ? Number(row.theme_id) : null; row.cost_item_id = row.cost_item_id ? Number(row.cost_item_id) : null
     row.special_ends = row.special_ends || null
     if (row.special_price != null && (row.price == null || row.special_price >= row.price)) { toast('A special price must be lower than the normal price'); return }
     if (!row.sku) delete row.sku
@@ -147,7 +148,8 @@ export function ProductEdit() {
           <div className="grid2">{F('material', 'Material')}{F('size', 'Size', { placeholder: 'e.g. 100 x 100 mm' })}</div>
           <label className="field" htmlFor="pe-care">Care<textarea id="pe-care" rows={2} value={p.care} onChange={e => set('care', e.target.value)} /></label>
           <div className="grid2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))' }}>{N('price', 'Price (R)')}{N('special_price', 'Special (R)')}{N('wholesale_price', 'Wholesale (R)')}{N('cost_price', 'Your cost (R)')}{p.made_to_order || p.is_custom ? null : N('stock', 'Stock')}</div>
-          <p className="muted" style={{ fontSize: 13, marginTop: -6 }}>Your cost is what one item costs you to make (blank plus ink). It is private and is used for the profit report.</p>
+          <div className="grid2" style={{ alignItems: 'end' }}><label className="field" htmlFor="pe-card">Costing card<select id="pe-card" value={p.cost_item_id || ''} onChange={e => set('cost_item_id', e.target.value)}><option value="">None</option>{cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+            <p className="muted" style={{ fontSize: 13 }}>Your cost is private and used for the profit report. With a costing card, <Link to="/admin/costing">Costing</Link> works it out and fills it in for you.</p></div>
           <div className="grid2"><label className="field" htmlFor="pe-se">Special ends (optional)<input id="pe-se" type="date" value={dt} onChange={e => set('special_ends', e.target.value ? new Date(e.target.value + 'T23:59:59+02:00').toISOString() : null)} /></label>{N('sort_order', 'Display order (lower shows first)')}</div>
         </div>
       </div>
