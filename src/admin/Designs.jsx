@@ -53,22 +53,25 @@ function DesignEdit({ d, themes, items, onDone, onCancel }) {
 function PhotoUpload({ onDone }) {
   const { toast } = useAdmin()
   const [st, setSt] = useState(null)
+  const [err, setErr] = useState('')
   const run = async files => {
+    setErr('')
     const list = [...files].filter(f => /\.webp$/i.test(f.name) && (f.webkitRelativePath || '').includes('designs/'))
     if (!list.length) { toast('Choose the "designs" folder inside public'); return }
-    const total = list.length; let done = 0, failed = 0; const ok = new Set()
+    const total = list.length; let done = 0, failed = 0; const ok = new Set(); let firstErr = ''
     setSt({ phase: 'Uploading photos', done, total })
     const queue = [...list]
     const worker = async () => {
       while (queue.length) {
         const f = queue.shift(); const wp = f.webkitRelativePath; const rel = 'designs/' + wp.substring(wp.lastIndexOf('designs/') + 8)
-        const { error } = await supabase.storage.from('product-images').upload(rel, f, { contentType: 'image/webp', upsert: true })
-        if (error) failed++; else ok.add(rel)
+        const { error } = await supabase.storage.from('product-images').upload(rel, f, { contentType: 'image/webp', upsert: false })
+        if (error && !/exist|duplicate/i.test(error.message || '')) { failed++; firstErr = firstErr || error.message } else ok.add(rel)
         done++; setSt({ phase: 'Uploading photos', done, total })
       }
     }
     await Promise.all([1, 2, 3, 4, 5, 6].map(worker))
-    if (failed) toast(failed + ' photos did not upload. Choose the folder again to retry them.')
+    if (failed) toast(failed + ' photos did not upload: ' + firstErr)
+    if (!ok.size) { setSt(null); setErr(firstErr || 'No photos uploaded'); return }
     const base = supabase.storage.from('product-images').getPublicUrl('designs/x').data.publicUrl.replace(/designs\/x$/, '')
     const [{ data: ps }, { data: ds }] = await Promise.all([
       supabase.from('products').select('id, image_url').like('image_url', '/designs/%'),
@@ -89,6 +92,7 @@ function PhotoUpload({ onDone }) {
     <div className="card panel" style={{ gap: 10 }}>
       <h2 style={{ fontSize: 22 }}>Upload brochure photos</h2>
       <p className="muted" style={{ fontSize: 14 }}>Choose a <b>designs</b> folder from <b>brochure photos</b> on your computer. The photos upload and link themselves. If the photos come in two parts, do each part. This box disappears once every photo is linked.</p>
+      {err && <div className="note" style={{ background: '#F8D7CF' }}><span><b>Upload stopped:</b> {err}</span></div>}
       {st ? <div className="stack" style={{ gap: 6 }}><b>{st.phase}: {st.done} of {st.total}</b><div className="bartrack"><i style={{ width: (st.total ? (st.done / st.total) * 100 : 0) + '%', background: 'var(--olive)' }} /></div><span className="muted" style={{ fontSize: 13 }}>Keep this page open until it finishes.</span></div>
         : <label className="btn sm" style={{ alignSelf: 'flex-start', cursor: 'pointer' }}>Choose the designs folder<input type="file" hidden webkitdirectory="" directory="" multiple onChange={e => e.target.files.length && run(e.target.files)} /></label>}
     </div>
