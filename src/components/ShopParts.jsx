@@ -4,18 +4,18 @@ import { useShop } from '../lib/store'
 import { Icon, Logo } from './Icons'
 import { R, hasPrice, specialOn, nowPrice, fullName, typeName, TYPES, inStock } from '../lib/format'
 
-const NAV = [
-  ['/shop', 'Shop all'], ['/shop?type=coaster', 'Coasters'], ['/shop?type=stand', 'Phone stands'],
-  ['/custom', 'Make it yours'], ['/specials', 'Specials'], ['/gift-sets', 'Gift sets'], ['/wholesale', 'Wholesale'], ['/help', 'Help']
-]
+const NAV = [['/custom', 'Make it yours'], ['/specials', 'Specials'], ['/gift-sets', 'Gift sets'], ['/wholesale', 'Wholesale'], ['/help', 'Help']]
 
 export function Header() {
-  const { count, setDrawer } = useShop()
+  const { count, setDrawer, themes } = useShop()
   const [open, setOpen] = useState(false)
+  const [menu, setMenu] = useState(false)
   const loc = useLocation()
-  useEffect(() => setOpen(false), [loc.pathname, loc.search])
+  useEffect(() => { setOpen(false); setMenu(false); if (document.activeElement && document.activeElement.closest && document.activeElement.closest('.shopmenu')) document.activeElement.blur() }, [loc.pathname, loc.search])
   const cur = to => (loc.pathname + loc.search === to) || (to === '/shop' && loc.pathname === '/shop' && !loc.search)
+  const types = TYPES.filter(t => t.active !== false)
   const links = NAV.map(([to, l]) => <Link key={to} to={to} aria-current={cur(to) ? 'page' : undefined}>{l}</Link>)
+  const shopOn = loc.pathname === '/shop' || loc.pathname.startsWith('/product/')
   return (
     <>
       <div className="topbar">Designed and UV printed in South Africa · Nationwide courier delivery</div>
@@ -23,14 +23,27 @@ export function Header() {
         <div className="wrap">
           <button className="iconbtn menubtn" onClick={() => setOpen(!open)} aria-label="Menu" aria-expanded={open}><Icon.menu /></button>
           <Link className="logo" to="/" aria-label="DF Elements home"><Logo /></Link>
-          <nav className="nav" aria-label="Main">{links}</nav>
+          <nav className="nav" aria-label="Main">
+            <div className={'shopmenu' + (menu ? ' open' : '')} onMouseLeave={() => setMenu(false)}>
+              <button className="shopbtn" aria-expanded={menu} aria-current={shopOn ? 'page' : undefined} onClick={() => setMenu(!menu)} onMouseEnter={() => setMenu(true)}>Shop <span aria-hidden="true">▾</span></button>
+              <div className="megamenu" role="menu">
+                <div><span className="eyebrow">Products</span><Link to="/shop" role="menuitem"><b>Shop everything</b></Link>{types.map(t => <Link key={t.key} to={'/shop?type=' + t.key} role="menuitem">{t.label}</Link>)}</div>
+                <div><span className="eyebrow">Themes</span>{themes.map(t => <Link key={t.id} to={'/shop?theme=' + t.id} role="menuitem">{t.name}</Link>)}</div>
+              </div>
+            </div>
+            {links}
+          </nav>
           <div className="hdr-actions">
             <Link className="iconbtn" to="/shop?focus=search" aria-label="Search products"><Icon.search /></Link>
             <Link className="iconbtn" to="/account" aria-label="My account"><Icon.user /></Link>
             <button className="cartbtn" onClick={() => setDrawer(true)} aria-label={'Cart, ' + count + ' items'}><Icon.bag /><span className="lbl">Cart</span> <span className="num">({count})</span></button>
           </div>
         </div>
-        <nav className={'mobnav' + (open ? ' open' : '')} aria-label="Mobile">{links}<Link to="/story">Our story</Link><Link to="/account">My account</Link></nav>
+        <nav className={'mobnav' + (open ? ' open' : '')} aria-label="Mobile">
+          <Link to="/shop">Shop everything</Link>
+          {types.map(t => <Link key={t.key} className="sub" to={'/shop?type=' + t.key}>{t.label}</Link>)}
+          {links}<Link to="/story">Our story</Link><Link to="/account">My account</Link>
+        </nav>
       </header>
     </>
   )
@@ -62,6 +75,27 @@ export function Price({ p }) {
   if (!hasPrice(p)) return <span className="price"><span className="muted" style={{ fontSize: 14, fontWeight: 600 }}>Price coming soon</span></span>
   if (specialOn(p)) return <span className="price"><span className="now sale num">{R(p.special_price)}</span><span className="was num">{R(p.price)}</span></span>
   return <span className="price"><span className="now num">{p.is_custom ? 'From ' : ''}{R(p.price)}</span></span>
+}
+
+// One card for a brochure design; shows the format that best fits the current filter
+export function DesignCard({ d, items, fmt }) {
+  const { themeName } = useShop()
+  const nav = useNavigate()
+  const show = items.find(p => p.format_key === fmt) || items[0]
+  const prices = items.filter(hasPrice).map(nowPrice)
+  const from = prices.length ? Math.min(...prices) : null
+  const to = '/design/' + d.id + (show ? '?f=' + show.format_key : '')
+  return (
+    <article className="card pcard" onClick={() => nav(to)}>
+      <div className="pimg">{show && show.image_url ? <img src={show.image_url} alt={d.name} loading="lazy" /> : <div className="noimg"><b>{d.name}</b></div>}{d.is_new ? <span className="pill badge" style={{ background: 'var(--primary)', color: '#fff', letterSpacing: '.08em', textTransform: 'uppercase', fontSize: 11 }}>New</span> : null}</div>
+      <div className="pbody">
+        <span className="pcat">{[themeName(d.theme_id), items.length + ' items'].filter(Boolean).join(' · ')}</span>
+        <h3><Link to={to} onClick={e => e.stopPropagation()} style={{ color: 'inherit', textDecoration: 'none' }}>{d.name}</Link></h3>
+        <span className="muted" style={{ fontSize: 14, marginTop: -2 }}>{d.short_description}</span>
+        <div className="addrow"><span className="price"><span className="now num">{from != null ? 'From ' + R(from) : 'Price coming soon'}</span></span><span className="linkbtn" style={{ fontSize: 13 }}>Choose</span></div>
+      </div>
+    </article>
+  )
 }
 
 export function ProductCard({ p }) {

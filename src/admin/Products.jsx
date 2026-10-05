@@ -71,7 +71,7 @@ export function Products() {
   const [rows, setRows] = useState(null)
   const [themes, setThemes] = useState([])
   const [tab, setTab] = useState('All'); const [q, setQ] = useState(''); const [theme, setTheme] = useState('')
-  const [cards, setCards] = useState([]); const [group, setGroup] = useState(false)
+  const [cards, setCards] = useState([]); const [group, setGroup] = useState(false); const [bro, setBro] = useState(false)
   const load = useCallback(async () => {
     const [{ data }, { data: th }, { data: wp }, { data: ci }] = await Promise.all([supabase.from('products').select('*').order('sort_order').order('id'), supabase.from('themes').select('*').order('sort_order'), supabase.from('wholesale_prices').select('*'), supabase.from('cost_items').select('id, name').order('sort_order')])
     const m = {}; (wp || []).forEach(x => { m[x.product_id] = Number(x.price) })
@@ -89,7 +89,7 @@ export function Products() {
   if (!rows) return <p className="muted">Loading…</p>
   const s = q.toLowerCase().trim()
   const FILTERS = filters()
-  const list = rows.filter(p => FILTERS[tab](p) && (!theme || String(p.theme_id) === theme) && (!s || ((p.sku || '') + ' ' + p.name + ' ' + p.variant).toLowerCase().includes(s)))
+  const list = rows.filter(p => (bro || !p.design_id) && FILTERS[tab](p) && (!theme || String(p.theme_id) === theme) && (!s || ((p.sku || '') + ' ' + p.name + ' ' + p.variant).toLowerCase().includes(s)))
   const tn = id => (themes.find(t => t.id === id) || {}).name || ''
   const cell = (p, k, label, style) => <input key={p.id + k + p[k]} className="cellin" type="number" min="0" step="0.01" inputMode="decimal" aria-label={label + ' for ' + fullName(p)} defaultValue={p[k] ?? ''} placeholder={k === 'price' ? 'Needed' : 'None'} style={style} onBlur={e => { const v = num(e.target.value); if (v !== (p[k] == null ? null : Number(p[k]))) save(p, { [k]: v }) }} onKeyDown={e => e.key === 'Enter' && e.target.blur()} />
   return (
@@ -98,7 +98,8 @@ export function Products() {
       {group && <GroupPrices rows={rows} cards={cards} onDone={load} onClose={() => setGroup(false)} />}
       <div className="row"><input type="search" aria-label="Search products" placeholder="Search by name or SKU" value={q} onChange={e => setQ(e.target.value)} style={{ ...inputS, padding: '0 20px', flex: '1 1 240px' }} />
         <select aria-label="Theme" value={theme} onChange={e => setTheme(e.target.value)} style={inputS}><option value="">All themes</option>{themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
-      <div className="chips">{Object.keys(FILTERS).map(t => <button key={t} className="chip" aria-pressed={tab === t} onClick={() => setTab(t)}>{t} ({rows.filter(FILTERS[t]).length})</button>)}</div>
+      <div className="chips">{Object.keys(FILTERS).map(t => <button key={t} className="chip" aria-pressed={tab === t} onClick={() => setTab(t)}>{t} ({rows.filter(p => (bro || !p.design_id) && FILTERS[t](p)).length})</button>)}</div>
+      <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 14 }}><input type="checkbox" checked={bro} onChange={e => setBro(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--primary)' }} />Also show brochure items ({rows.filter(p => p.design_id).length}). Edit those under Brochure designs.</label>
       <div className="card" style={{ padding: '6px 20px' }}><div className="tablewrap"><table className="t" style={{ minWidth: 1120 }}>
         <thead><tr><th></th><th>SKU</th><th>Design</th><th>Theme</th><th>Price (R)</th><th>Special (R)</th><th>Wholesale (R)</th><th>Stock</th><th>Shown</th></tr></thead>
         <tbody>{list.map(p => (

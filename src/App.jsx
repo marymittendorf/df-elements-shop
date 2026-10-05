@@ -6,6 +6,7 @@ import { Home, Shop, Product, Custom, Specials, GiftSets, Story, NotFound } from
 import { Checkout, OrderDone, Account } from './pages/Buy'
 import { Wholesale } from './pages/Wholesale'
 import { Help } from './pages/Help'
+import { Design } from './pages/Design'
 
 const AdminApp = lazy(() => import('./admin/AdminApp'))
 
@@ -32,6 +33,7 @@ export default function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/shop" element={<Shop />} />
                 <Route path="/product/:id" element={<Product />} />
+                <Route path="/design/:id" element={<Design />} />
                 <Route path="/custom" element={<Custom />} />
                 <Route path="/specials" element={<Specials />} />
                 <Route path="/gift-sets" element={<GiftSets />} />

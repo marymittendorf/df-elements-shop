@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useShop } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { Icon } from '../components/Icons'
-import { ProductCard, SetHero, PageHead, Loading, Price, setFull } from '../components/ShopParts'
+import { ProductCard, DesignCard, SetHero, PageHead, Loading, Price, setFull } from '../components/ShopParts'
 import { R, TYPES, typeName, hasPrice, specialOn, nowPrice, fullName, inStock } from '../lib/format'
 
 export function Home() {
-  const { products, themes, sets, loading, error } = useShop()
+  const { products, themes, sets, loading, error, designs } = useShop()
   if (loading) return <Loading />
   if (error) return <section><div className="wrap"><p className="muted">The shop could not load right now. Please refresh the page.</p></div></section>
-  const fav = products.filter(p => !p.is_custom && (p.is_new || specialOn(p))).slice(0, 4)
+  const fav = products.filter(p => !p.is_custom && !p.design_id && (p.is_new || specialOn(p))).slice(0, 4)
   return (
     <>
       <div className="wrap hero">
@@ -49,7 +49,7 @@ export function Home() {
         <div className="ph"><img src="/products/story.webp" alt="Four donkey coasters from the Plaas Humor range" /></div>
         <div className="stack"><span className="eyebrow">Our story</span><h2 style={{ fontSize: 'clamp(36px,4.6vw,56px)' }}>Designed in house, printed with care</h2>
           <p className="muted" style={{ fontSize: 18, maxWidth: 560 }}>Every DF Elements design is created in house and UV printed onto MDF, then packed by hand and couriered to you anywhere in South Africa.</p>
-          <div className="stats"><div><strong>{themes.length}</strong><span className="muted" style={{ fontSize: 14 }}>Themes</span></div><div><strong>{products.length}</strong><span className="muted" style={{ fontSize: 14 }}>Designs</span></div><div><strong>Local</strong><span className="muted" style={{ fontSize: 14 }}>Proudly South African</span></div></div>
+          <div className="stats"><div><strong>{themes.length}</strong><span className="muted" style={{ fontSize: 14 }}>Themes</span></div><div><strong>{products.filter(p => !p.design_id).length + designs.length}</strong><span className="muted" style={{ fontSize: 14 }}>Designs</span></div><div><strong>Local</strong><span className="muted" style={{ fontSize: 14 }}>Proudly South African</span></div></div>
         </div>
       </div></section>
     </>
@@ -57,7 +57,7 @@ export function Home() {
 }
 
 export function Shop() {
-  const { products, themes, loading, themeName } = useShop()
+  const { products, themes, loading, themeName, designs, formats } = useShop()
   const [sp, setSp] = useSearchParams()
   const [q, setQ] = useState('')
   const [sort, setSort] = useState('best')
@@ -66,14 +66,23 @@ export function Shop() {
   const theme = sp.get('theme') ? Number(sp.get('theme')) : null
   useEffect(() => { if (sp.get('focus') === 'search' && qRef.current) qRef.current.focus() }, [sp])
   const setParam = (k, v) => { const n = new URLSearchParams(sp); n.delete('focus'); if (v) n.set(k, v); else n.delete(k); setSp(n, { replace: true }) }
+  // Brochure designs show as one card each; other products show on their own
   const list = useMemo(() => {
     const s = q.toLowerCase().trim()
-    let l = products.filter(p => (!type || p.type === type) && (!theme || p.theme_id === theme) && (!s || (p.name + ' ' + p.variant + ' ' + themeName(p.theme_id) + ' ' + p.short_description + ' ' + typeName(p.type)).toLowerCase().includes(s)))
-    if (sort === 'low') l = [...l].sort((a, b) => (hasPrice(a) ? nowPrice(a) : 1e9) - (hasPrice(b) ? nowPrice(b) : 1e9))
-    if (sort === 'high') l = [...l].sort((a, b) => nowPrice(b) - nowPrice(a))
-    if (sort === 'new') l = [...l].sort((a, b) => (b.is_new ? 1 : 0) - (a.is_new ? 1 : 0))
+    const FL = Object.fromEntries((formats || []).map(f => [f.key, f.label]))
+    const single = products.filter(p => !p.design_id && (!type || p.type === type) && (!theme || p.theme_id === theme) && (!s || (p.name + ' ' + p.variant + ' ' + themeName(p.theme_id) + ' ' + p.short_description + ' ' + typeName(p.type)).toLowerCase().includes(s)))
+      .map(p => ({ key: 'p' + p.id, p, price: hasPrice(p) ? nowPrice(p) : 1e9, isNew: p.is_new }))
+    const byDesign = {}
+    products.forEach(p => { if (p.design_id && (!type || p.type === type)) (byDesign[p.design_id] = byDesign[p.design_id] || []).push(p) })
+    const fmt = type ? null : 'a3'
+    const des = (designs || []).filter(d => byDesign[d.id] && (!theme || d.theme_id === theme) && (!s || (d.name + ' ' + d.wording + ' ' + d.short_description + ' ' + d.description + ' ' + d.code + ' ' + themeName(d.theme_id) + ' ' + byDesign[d.id].map(p => FL[p.format_key]).join(' ')).toLowerCase().includes(s)))
+      .map(d => { const items = byDesign[d.id]; const ps = items.filter(hasPrice).map(nowPrice); return { key: 'd' + d.id, d, items, fmt, price: ps.length ? Math.min(...ps) : 1e9, isNew: d.is_new } })
+    let l = [...single, ...des]
+    if (sort === 'low') l.sort((a, b) => a.price - b.price)
+    if (sort === 'high') l.sort((a, b) => (b.price === 1e9 ? 0 : b.price) - (a.price === 1e9 ? 0 : a.price))
+    if (sort === 'new') l.sort((a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0))
     return l
-  }, [products, type, theme, q, sort, themeName])
+  }, [products, designs, formats, type, theme, q, sort, themeName])
   if (loading) return <Loading />
   const th = themes.find(t => t.id === theme); const ty = TYPES.find(t => t.key === type)
   const title = th ? th.name : ty ? ty.label : 'Shop all'
@@ -92,10 +101,10 @@ export function Shop() {
           </fieldset>
         </aside>
         <div>
-          <div className="toolbar"><span className="muted">Showing {list.length} {list.length === 1 ? 'item' : 'items'}</span>
+          <div className="toolbar"><span className="muted">Showing {list.length} {list.length === 1 ? 'design' : 'designs'}</span>
             <label style={{ display: 'flex', alignItems: 'center', gap: 10 }}>Sort by <select value={sort} onChange={e => setSort(e.target.value)}><option value="best">Theme</option><option value="new">Newest</option><option value="low">Price, low to high</option><option value="high">Price, high to low</option></select></label>
           </div>
-          {list.length ? <div className="pgrid three">{list.map(p => <ProductCard key={p.id} p={p} />)}</div>
+          {list.length ? <div className="pgrid three">{list.map(x => x.d ? <DesignCard key={x.key} d={x.d} items={x.items} fmt={x.fmt} /> : <ProductCard key={x.key} p={x.p} />)}</div>
             : type && !products.some(p => p.type === type) ? <div className="card" style={{ padding: 40, display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'flex-start', background: 'var(--surface)', border: 0 }}><h2 style={{ fontSize: 36 }}>{typeName(type)} are coming soon</h2><p className="muted" style={{ maxWidth: 560 }}>Check back soon.</p><Link className="btn" to="/shop">Shop everything</Link></div>
               : <p className="muted">No designs match. Try another word or clear the filters.</p>}
         </div>
@@ -138,8 +147,9 @@ export function Product() {
   useEffect(() => { setQty(1); setPhotoState(null); setNote('') }, [id])
   if (loading) return <Loading />
   const p = P(Number(id))
+  if (p && p.design_id) return <Navigate to={'/design/' + p.design_id + '?f=' + p.format_key} replace />
   if (!p) return <section><div className="wrap stack"><h1 style={{ fontSize: 44 }}>We could not find that design</h1><Link className="btn" to="/shop" style={{ alignSelf: 'flex-start' }}>Shop the range</Link></div></section>
-  const rel = products.filter(x => x.id !== p.id && (p.theme_id ? x.theme_id === p.theme_id : x.type === p.type) && !x.is_custom).slice(0, 4)
+  const rel = products.filter(x => x.id !== p.id && !x.design_id && (p.theme_id ? x.theme_id === p.theme_id : x.type === p.type) && !x.is_custom).slice(0, 4)
   const set = sets.find(s => s.gift_set_items.some(i => i.product_id === p.id))
 
   const setPhoto = async file => {
