@@ -95,6 +95,14 @@ This makes the "confirm your email" and "reset your password" links for customer
 4. Link the remaining products to a costing card at the bottom of the page, or add a new card for them.
 5. Press **Copy costs to products** so the profit report uses these costs. Press it again whenever you change a figure.
 
+## Suppliers and automatic VAT on expenses
+
+1. In the Supabase **SQL Editor**, paste in **supabase/15_suppliers.sql** and click **Run**. It creates the supplier list and fills it from the suppliers already on your expenses.
+2. Upload the **src** folder, the **supabase** folder and this file to GitHub, and commit to main. Vercel updates the shop by itself.
+3. In **Expenses**, start typing a supplier and pick it from the list, or type a new name. New names are added to the list when you save.
+4. Answer **Did this include VAT?** with **Yes** or **No**. Yes works out the VAT from the amount (15% of a VAT inclusive total). Use **Change** if a slip has a mix of VAT and non VAT items.
+5. The answer is remembered for each supplier, so next time it is filled in for you. The **Suppliers** tab lets you fix a spelling or change whether a supplier charges VAT.
+
 ## When the domain has moved to xneelo
 
 1. In Vercel, open the project, then **Settings**, then **Domains**, and add your domain.
