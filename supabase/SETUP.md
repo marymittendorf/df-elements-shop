@@ -95,28 +95,6 @@ This makes the "confirm your email" and "reset your password" links for customer
 4. Link the remaining products to a costing card at the bottom of the page, or add a new card for them.
 5. Press **Copy costs to products** so the profit report uses these costs. Press it again whenever you change a figure.
 
-## Suppliers and automatic VAT on expenses
-
-1. In the Supabase **SQL Editor**, paste in **supabase/15_suppliers.sql** and click **Run**. It creates the supplier list and fills it from the suppliers already on your expenses.
-2. Upload the **src** folder, the **supabase** folder and this file to GitHub, and commit to main. Vercel updates the shop by itself.
-3. In **Expenses**, start typing a supplier and pick it from the list, or type a new name. New names are added to the list when you save.
-4. Answer **Did this include VAT?** with **Yes** or **No**. Yes works out the VAT from the amount (15% of a VAT inclusive total). Use **Change** if a slip has a mix of VAT and non VAT items.
-5. The answer is remembered for each supplier, so next time it is filled in for you. The **Suppliers** tab lets you fix a spelling or change whether a supplier charges VAT.
-
-## Bank and cash balances
-
-1. In Supabase, switch to the DF Elements project, then run `supabase/16_bank_and_cash.sql` in the SQL Editor (after 14 and 15). Run it before you record anything new, because TymeBank starts at R1 225,36 from the moment it runs.
-2. Upload the `src` folder to GitHub again so Vercel rebuilds the shop.
-3. Open **Bank and cash** in the admin. Click **Accounts** and type in how much is in petty cash.
-
-How the balances work:
-
-* Paid shop orders are added to TymeBank (the account marked "Shop sales go here").
-* Expenses come off the account under **Paid from** on the expense. Cash goes to petty cash and everything else to TymeBank, and you can change it on any expense.
-* An expense dated before the starting balance does not change the balance, because that money had already left the account.
-* **Top up petty cash** or **Move money** moves money between accounts. **Money in** and **Money out** are for money that is not a sale or an expense, like money of your own you put in.
-* Once a month, use **Check against statement** (or **Count the cash** for petty cash). Type in the real balance and the shop adds a correction for the difference. Add any missing bank charges as expenses first.
-
 ## When the domain has moved to xneelo
 
 1. In Vercel, open the project, then **Settings**, then **Domains**, and add your domain.
